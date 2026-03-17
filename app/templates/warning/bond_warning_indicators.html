@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Bond Fund Warning Indicators - Fund Risk Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .indicator-item { padding: 0.75rem; border-bottom: 1px solid #dee2e6; transition: background-color 0.2s; }
+    .indicator-item:hover { background-color: #fff3cd; }
+    .indicator-item.warning { background-color: #fff3cd; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <h4 class="mb-4"><i class="fas fa-bell text-danger me-2"></i>Bond Fund Warning Indicators</h4>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Fund Name</label>
+                    <select id="fundSelect" class="form-select"><option value="">-- Select Fund --</option></select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Date</label>
+                    <select id="dateSelect" class="form-select" disabled><option value="">-- Select Fund First --</option></select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button id="queryBtn" class="btn btn-danger"><i class="fas fa-search me-1"></i>Query</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultsPanel" style="display:none;">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Warning Indicator Results</h5>
+            </div>
+            <div class="card-body" id="resultsContent"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+    var fundEl = document.getElementById('fundSelect');
+    var dateEl = document.getElementById('dateSelect');
+
+    loadFunds();
+
+    fundEl.addEventListener('change', function() {
+        if (this.value) loadDates(this.value);
+        else { dateEl.innerHTML = '<option value="">-- Select Fund First --</option>'; dateEl.disabled = true; }
+    });
+
+    document.getElementById('queryBtn').addEventListener('click', doQuery);
+
+    function loadFunds() {
+        fetch('{{ url_for("warning.api_fund_names") }}?type=bond')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data) {
+                    fundEl.innerHTML = '<option value="">-- Select Fund --</option>';
+                    data.data.forEach(function(n) { fundEl.innerHTML += '<option value="' + n + '">' + n + '</option>'; });
+                }
+            }).catch(function() { fundEl.innerHTML = '<option value="">Failed to load</option>'; });
+    }
+
+    function loadDates(fundName) {
+        dateEl.innerHTML = '<option value="">Loading...</option>'; dateEl.disabled = true;
+        fetch('{{ url_for("warning.api_dates") }}?type=bond&fund_name=' + encodeURIComponent(fundName))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data && data.data.length > 0) {
+                    dateEl.innerHTML = '<option value="">-- Select Date --</option>';
+                    data.data.forEach(function(d) { dateEl.innerHTML += '<option value="' + d + '">' + d + '</option>'; });
+                    dateEl.disabled = false;
+                } else { dateEl.innerHTML = '<option value="">No dates available</option>'; }
+            }).catch(function() { dateEl.innerHTML = '<option value="">Failed to load</option>'; });
+    }
+
+    function doQuery() {
+        var fundName = fundEl.value, date = dateEl.value;
+        if (!fundName || !date) { alert('Please select both fund name and date.'); return; }
+
+        var panel = document.getElementById('resultsPanel'), content = document.getElementById('resultsContent');
+        panel.style.display = 'block';
+        content.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-danger" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Calculating data, please wait...</p></div>';
+
+        fetch('{{ url_for("warning.api_bond_calculate") }}', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fund_name: fundName, date: date })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) displayResult(data.warning_indicators, fundName, date);
+            else content.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>' + (data.message || 'Query failed') + '</div>';
+        })
+        .catch(function(err) { content.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Query failed: ' + err.message + '</div>'; });
+    }
+
+    function displayResult(result, fundName, date) {
+        if (!result || !result.indicators) {
+            document.getElementById('resultsContent').innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No data found</div>';
+            return;
+        }
+
+        var labels = {
+            'indicator1_high_liquidity': 'High Liquidity Assets Ratio',
+            'indicator2_aa_below': 'AA & Below Bond Ratio',
+            'indicator3_aa2_below': 'AA(2) & Below Bond Ratio',
+            'indicator4_low_rated_single': 'Low-rated Single Issuer Ratio',
+            'indicator5_leverage': 'Leverage Ratio',
+            'indicator6_real_estate_ratio': 'Real Estate Ratio'
+        };
+
+        var html = '<div class="mb-4"><h5 class="mb-3">Fund: ' + fundName + ' | Date: ' + date + '</h5>' +
+            '<table class="table table-bordered"><thead class="table-light"><tr><th>Indicator Name</th><th>Actual Value</th><th>Threshold</th><th>Status</th></tr></thead><tbody>';
+
+        result.indicators.forEach(function(ind) {
+            var name = labels[ind.key] || ind.name || ind.key;
+            var isW = (ind.status === 'Warning' || ind.status === '\u9884\u8b66');
+            var badge = isW ? '<span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>Warning</span>' : '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Normal</span>';
+            html += '<tr class="' + (isW ? 'table-warning' : '') + '"><td>' + name + '</td><td>' + fmtPct(ind.value) + '</td><td>' + fmtPct(ind.threshold) + '</td><td>' + badge + '</td></tr>';
+        });
+
+        html += '</tbody></table><div class="alert alert-info mt-3"><i class="fas fa-info-circle me-2"></i><strong>Note:</strong> When the actual value exceeds the threshold, the indicator triggers a "Warning" status.</div></div>';
+        document.getElementById('resultsContent').innerHTML = html;
+    }
+
+    function fmtPct(v) { if (v === null || v === undefined) return '-'; return (Number(v) * 100).toFixed(2) + '%'; }
+})();
+</script>
+{% endblock %}

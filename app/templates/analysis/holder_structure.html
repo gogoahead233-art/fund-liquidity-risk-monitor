@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+
+{% block title %}Holder Structure Analysis - Fund Risk Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+.structure-table {
+    table-layout: fixed;
+    width: 100%;
+}
+.structure-table th,
+.structure-table td {
+    vertical-align: middle !important;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid #dee2e6;
+}
+.structure-table th:nth-child(1),
+.structure-table td:nth-child(1) { text-align: center !important; width: 25%; }
+.structure-table th:nth-child(2),
+.structure-table td:nth-child(2) { text-align: center !important; width: 15%; font-family: 'Courier New', monospace; font-weight: 600; }
+.structure-table th:nth-child(3),
+.structure-table td:nth-child(3) { text-align: right !important; width: 35%; font-family: 'Courier New', monospace; font-weight: 500; }
+.structure-table th:nth-child(4),
+.structure-table td:nth-child(4) { text-align: right !important; width: 25%; font-family: 'Courier New', monospace; font-weight: 600; color: #495057; }
+.structure-table th { font-weight: 700; background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; }
+.structure-table tbody tr { height: 3.5rem; }
+.structure-table tbody tr:nth-child(even) { background-color: #f8f9fa; }
+.structure-table tbody tr:hover { background-color: #e9ecef; }
+
+.pie-chart-container { display: flex; justify-content: center; align-items: center; margin-top: 1rem; }
+.pie-legend { list-style: none; padding: 0; margin-left: 2rem; }
+.pie-legend li { margin-bottom: 0.5rem; display: flex; align-items: center; }
+.pie-legend-color { width: 14px; height: 14px; border-radius: 3px; display: inline-block; margin-right: 8px; }
+
+.summary-value { font-size: 1.5rem; font-weight: 700; font-family: 'Courier New', monospace; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Holder Structure Analysis
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Query Criteria -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="fundSelect" class="form-label">Select Fund</label>
+                            <select class="form-select" id="fundSelect">
+                                <option value="">Select a fund...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="dateSelect" class="form-label">Select Analysis Date</label>
+                            <select class="form-select" id="dateSelect" disabled>
+                                <option value="">Select a fund first...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-primary" id="analyzeBtn" disabled>
+                                <i class="fas fa-search me-2"></i>Analyze
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Analysis Results -->
+                    <div id="analysisResult" style="display: none;">
+                        <!-- Summary -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <div class="text-muted mb-1">Total Investors</div>
+                                        <div class="summary-value text-primary" id="totalCount">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <div class="text-muted mb-1">Total Amount (CNY)</div>
+                                        <div class="summary-value text-success" id="totalAmount">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <div class="text-muted mb-1">Analysis Date</div>
+                                        <div class="summary-value text-info" id="analysisDate">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Individual Investors -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0"><i class="fas fa-user me-2"></i>Individual Investors</h5>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table structure-table table-hover mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="text-center">Category</th>
+                                                        <th class="text-center">Count</th>
+                                                        <th class="text-end">Amount (CNY)</th>
+                                                        <th class="text-end">Ratio</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-primary">High Amount (&gt;=200K)</span></td>
+                                                        <td class="text-center" id="highAmountIndividualCount">0</td>
+                                                        <td class="text-end" id="highAmountIndividualAmount">0</td>
+                                                        <td class="text-end" id="highAmountIndividualRatio">0%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-warning text-dark">Low Amount (&lt;200K)</span></td>
+                                                        <td class="text-center" id="lowAmountIndividualCount">0</td>
+                                                        <td class="text-end" id="lowAmountIndividualAmount">0</td>
+                                                        <td class="text-end" id="lowAmountIndividualRatio">0%</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product Investors -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0"><i class="fas fa-box me-2"></i>Product Investors</h5>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table structure-table table-hover mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="text-center">Product Type</th>
+                                                        <th class="text-center">Count</th>
+                                                        <th class="text-end">Amount (CNY)</th>
+                                                        <th class="text-end">Ratio</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-info">Insurance Product</span></td>
+                                                        <td class="text-center" id="insuranceProductCount">0</td>
+                                                        <td class="text-end" id="insuranceProductAmount">0</td>
+                                                        <td class="text-end" id="insuranceProductRatio">0%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-warning text-dark">Trust Product</span></td>
+                                                        <td class="text-center" id="trustProductCount">0</td>
+                                                        <td class="text-end" id="trustProductAmount">0</td>
+                                                        <td class="text-end" id="trustProductRatio">0%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-success">Bank Product</span></td>
+                                                        <td class="text-center" id="bankProductCount">0</td>
+                                                        <td class="text-end" id="bankProductAmount">0</td>
+                                                        <td class="text-end" id="bankProductRatio">0%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-secondary">Other Product</span></td>
+                                                        <td class="text-center" id="otherProductCount">0</td>
+                                                        <td class="text-end" id="otherProductAmount">0</td>
+                                                        <td class="text-end" id="otherProductRatio">0%</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Institutional Investors -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header bg-info text-white">
+                                        <h5 class="mb-0"><i class="fas fa-building me-2"></i>Institutional Investors</h5>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table structure-table table-hover mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="text-center">Institution Type</th>
+                                                        <th class="text-center">Count</th>
+                                                        <th class="text-end">Amount (CNY)</th>
+                                                        <th class="text-end">Ratio</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-primary">Bank Institution</span></td>
+                                                        <td class="text-center" id="bankInstitutionCount">0</td>
+                                                        <td class="text-end" id="bankInstitutionAmount">0</td>
+                                                        <td class="text-end" id="bankInstitutionRatio">0%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-warning text-dark">Insurance Institution</span></td>
+                                                        <td class="text-center" id="insuranceInstitutionCount">0</td>
+                                                        <td class="text-end" id="insuranceInstitutionAmount">0</td>
+                                                        <td class="text-end" id="insuranceInstitutionRatio">0%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-success">Finance Institution</span></td>
+                                                        <td class="text-center" id="financeInstitutionCount">0</td>
+                                                        <td class="text-end" id="financeInstitutionAmount">0</td>
+                                                        <td class="text-end" id="financeInstitutionRatio">0%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-secondary">Other Institution</span></td>
+                                                        <td class="text-center" id="otherInstitutionCount">0</td>
+                                                        <td class="text-end" id="otherInstitutionAmount">0</td>
+                                                        <td class="text-end" id="otherInstitutionRatio">0%</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CSS Pie Chart -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Structure Overview</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="pie-chart-container">
+                                            <div id="pieChart" style="width: 200px; height: 200px; border-radius: 50%; position: relative;"></div>
+                                            <ul class="pie-legend" id="pieLegend"></ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const amountFmt = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadFunds();
+
+    document.getElementById('fundSelect').addEventListener('change', function() {
+        var fundName = this.value;
+        if (fundName) {
+            loadDates(fundName);
+            document.getElementById('dateSelect').disabled = false;
+        } else {
+            document.getElementById('dateSelect').disabled = true;
+            document.getElementById('dateSelect').innerHTML = '<option value="">Select a fund first...</option>';
+            document.getElementById('analyzeBtn').disabled = true;
+        }
+    });
+
+    document.getElementById('dateSelect').addEventListener('change', function() {
+        document.getElementById('analyzeBtn').disabled = !this.value;
+    });
+
+    document.getElementById('analyzeBtn').addEventListener('click', function() {
+        var fundName = document.getElementById('fundSelect').value;
+        var analysisDate = document.getElementById('dateSelect').value;
+        if (fundName && analysisDate) {
+            analyzeFundStructure(fundName, analysisDate);
+        }
+    });
+});
+
+function loadFunds() {
+    fetch('/analysis/api/structure_funds')
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success) {
+                var select = document.getElementById('fundSelect');
+                select.innerHTML = '<option value="">Select a fund...</option>';
+                response.data.forEach(function(fund) {
+                    var opt = document.createElement('option');
+                    opt.value = fund;
+                    opt.textContent = fund;
+                    select.appendChild(opt);
+                });
+            } else {
+                showAlert('Failed to load fund list: ' + (response.error || ''), 'danger');
+            }
+        })
+        .catch(function(err) { showAlert('Failed to load fund list: ' + err, 'danger'); });
+}
+
+function loadDates(fundName) {
+    fetch('/analysis/api/structure_dates?fund_name=' + encodeURIComponent(fundName))
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success) {
+                var select = document.getElementById('dateSelect');
+                select.innerHTML = '<option value="">Select analysis date...</option>';
+                response.data.forEach(function(date) {
+                    var opt = document.createElement('option');
+                    opt.value = date;
+                    opt.textContent = date;
+                    select.appendChild(opt);
+                });
+            } else {
+                showAlert('Failed to load dates: ' + (response.error || ''), 'danger');
+            }
+        })
+        .catch(function(err) { showAlert('Failed to load dates: ' + err, 'danger'); });
+}
+
+function analyzeFundStructure(fundName, analysisDate) {
+    var btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+
+    fetch('/analysis/api/fund_structure_analysis', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({fund_name: fundName, analysis_date: analysisDate})
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            displayAnalysisResult(response.data, analysisDate);
+            document.getElementById('analysisResult').style.display = '';
+        } else {
+            showAlert('Analysis failed: ' + (response.error || ''), 'danger');
+        }
+    })
+    .catch(function(err) { showAlert('Analysis failed: ' + err, 'danger'); })
+    .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search me-2"></i>Analyze';
+    });
+}
+
+function displayAnalysisResult(data, analysisDate) {
+    var fmtRatio = function(val) { return (val * 100).toFixed(2) + '%'; };
+    var fmtAmt = function(val) { return amountFmt.format(val); };
+
+    // Summary
+    var totalCount = (data.high_amount_individual_count || 0) + (data.low_amount_individual_count || 0) +
+        (data.insurance_product_count || 0) + (data.trust_product_count || 0) + (data.bank_product_count || 0) + (data.other_product_count || 0) +
+        (data.bank_institution_count || 0) + (data.insurance_institution_count || 0) + (data.finance_institution_count || 0) + (data.other_institution_count || 0);
+    var totalAmount = (data.high_amount_individual_amount || 0) + (data.low_amount_individual_amount || 0) +
+        (data.insurance_product_amount || 0) + (data.trust_product_amount || 0) + (data.bank_product_amount || 0) + (data.other_product_amount || 0) +
+        (data.bank_institution_amount || 0) + (data.insurance_institution_amount || 0) + (data.finance_institution_amount || 0) + (data.other_institution_amount || 0);
+
+    document.getElementById('totalCount').textContent = totalCount;
+    document.getElementById('totalAmount').textContent = fmtAmt(totalAmount);
+    document.getElementById('analysisDate').textContent = analysisDate;
+
+    // Individual
+    setText('highAmountIndividualCount', data.high_amount_individual_count);
+    setText('highAmountIndividualAmount', fmtAmt(data.high_amount_individual_amount));
+    setText('highAmountIndividualRatio', fmtRatio(data.high_amount_individual_ratio));
+    setText('lowAmountIndividualCount', data.low_amount_individual_count);
+    setText('lowAmountIndividualAmount', fmtAmt(data.low_amount_individual_amount));
+    setText('lowAmountIndividualRatio', fmtRatio(data.low_amount_individual_ratio));
+
+    // Product
+    setText('insuranceProductCount', data.insurance_product_count);
+    setText('insuranceProductAmount', fmtAmt(data.insurance_product_amount));
+    setText('insuranceProductRatio', fmtRatio(data.insurance_product_ratio));
+    setText('trustProductCount', data.trust_product_count);
+    setText('trustProductAmount', fmtAmt(data.trust_product_amount));
+    setText('trustProductRatio', fmtRatio(data.trust_product_ratio));
+    setText('bankProductCount', data.bank_product_count);
+    setText('bankProductAmount', fmtAmt(data.bank_product_amount));
+    setText('bankProductRatio', fmtRatio(data.bank_product_ratio));
+    setText('otherProductCount', data.other_product_count);
+    setText('otherProductAmount', fmtAmt(data.other_product_amount));
+    setText('otherProductRatio', fmtRatio(data.other_product_ratio));
+
+    // Institution
+    setText('bankInstitutionCount', data.bank_institution_count);
+    setText('bankInstitutionAmount', fmtAmt(data.bank_institution_amount));
+    setText('bankInstitutionRatio', fmtRatio(data.bank_institution_ratio));
+    setText('insuranceInstitutionCount', data.insurance_institution_count);
+    setText('insuranceInstitutionAmount', fmtAmt(data.insurance_institution_amount));
+    setText('insuranceInstitutionRatio', fmtRatio(data.insurance_institution_ratio));
+    setText('financeInstitutionCount', data.finance_institution_count);
+    setText('financeInstitutionAmount', fmtAmt(data.finance_institution_amount));
+    setText('financeInstitutionRatio', fmtRatio(data.finance_institution_ratio));
+    setText('otherInstitutionCount', data.other_institution_count);
+    setText('otherInstitutionAmount', fmtAmt(data.other_institution_amount));
+    setText('otherInstitutionRatio', fmtRatio(data.other_institution_ratio));
+
+    // Pie chart
+    renderPieChart(data);
+}
+
+function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+
+function renderPieChart(data) {
+    var segments = [
+        {label: 'High Amt Individual', ratio: data.high_amount_individual_ratio || 0, color: '#0d6efd'},
+        {label: 'Low Amt Individual', ratio: data.low_amount_individual_ratio || 0, color: '#ffc107'},
+        {label: 'Insurance Product', ratio: data.insurance_product_ratio || 0, color: '#0dcaf0'},
+        {label: 'Trust Product', ratio: data.trust_product_ratio || 0, color: '#fd7e14'},
+        {label: 'Bank Product', ratio: data.bank_product_ratio || 0, color: '#198754'},
+        {label: 'Other Product', ratio: data.other_product_ratio || 0, color: '#6c757d'},
+        {label: 'Bank Institution', ratio: data.bank_institution_ratio || 0, color: '#6610f2'},
+        {label: 'Insurance Institution', ratio: data.insurance_institution_ratio || 0, color: '#d63384'},
+        {label: 'Finance Institution', ratio: data.finance_institution_ratio || 0, color: '#20c997'},
+        {label: 'Other Institution', ratio: data.other_institution_ratio || 0, color: '#adb5bd'}
+    ].filter(function(s) { return s.ratio > 0; });
+
+    // Build conic gradient
+    var gradientParts = [];
+    var cumulative = 0;
+    segments.forEach(function(seg) {
+        var start = cumulative * 360;
+        cumulative += seg.ratio;
+        var end = cumulative * 360;
+        gradientParts.push(seg.color + ' ' + start + 'deg ' + end + 'deg');
+    });
+
+    var pie = document.getElementById('pieChart');
+    if (gradientParts.length > 0) {
+        pie.style.background = 'conic-gradient(' + gradientParts.join(', ') + ')';
+    } else {
+        pie.style.background = '#e9ecef';
+    }
+
+    // Legend
+    var legend = document.getElementById('pieLegend');
+    legend.innerHTML = '';
+    segments.forEach(function(seg) {
+        var li = document.createElement('li');
+        li.innerHTML = '<span class="pie-legend-color" style="background:' + seg.color + ';"></span>' +
+            seg.label + ': ' + (seg.ratio * 100).toFixed(2) + '%';
+        legend.appendChild(li);
+    });
+}
+
+function showAlert(message, type) {
+    var container = document.querySelector('.container-fluid');
+    var div = document.createElement('div');
+    div.className = 'alert alert-' + type + ' alert-dismissible fade show';
+    div.setAttribute('role', 'alert');
+    div.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    container.insertBefore(div, container.firstChild);
+    setTimeout(function() { if (div.parentNode) div.remove(); }, 3000);
+}
+</script>
+{% endblock %}

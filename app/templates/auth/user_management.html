@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Fund Risk Monitoring System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4><i class="fas fa-users me-2"></i>User Management</h4>
+            <p class="text-muted">Manage system users and fund access permissions</p>
+        </div>
+    </div>
+
+    <!-- Create User -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-user-plus me-2"></i>Create New User</h6>
+                </div>
+                <div class="card-body">
+                    <form id="createUserForm">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="username" name="username" placeholder="Enter username" required>
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Fund Permissions</label>
+                                <div class="border rounded p-3" style="max-height: 150px; overflow-y: auto;">
+                                    <div id="fundList">
+                                        <div class="text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Loading fund list...</div>
+                                    </div>
+                                </div>
+                                <div class="form-text">Select which funds this user can access</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-user-plus me-2"></i>Create User
+                                </button>
+                                <small class="text-muted ms-3">Default password: risk_123</small>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>User List</h6>
+                    <span class="badge bg-info" id="userCount">0 users</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Fund Permissions</th>
+                                    <th>Created At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        Loading users...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Permissions Modal -->
+<div class="modal fade" id="editPermissionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit User Permissions</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPermissionsForm">
+                    <input type="hidden" id="editUserId" name="user_id">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" id="editUsername" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">User Role</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="editUserRole" id="editRoleAdmin" value="admin">
+                            <label class="form-check-label" for="editRoleAdmin">
+                                <i class="fas fa-crown me-1 text-warning"></i>Admin
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="editUserRole" id="editRoleUser" value="user" checked>
+                            <label class="form-check-label" for="editRoleUser">
+                                <i class="fas fa-user me-1 text-secondary"></i>User
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3" id="editFundSection">
+                        <label class="form-label">Fund Permissions</label>
+                        <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                            <div id="editFundList">
+                                <div class="text-muted">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="form-text">Select which funds this user can access</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="savePermissionsBtn">
+                    <i class="fas fa-save me-2"></i>Save Permissions
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let availableFunds = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadFundList();
+    loadUserList();
+
+    document.getElementById('createUserForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        createUser();
+    });
+
+    document.getElementById('savePermissionsBtn').addEventListener('click', function() {
+        savePermissions();
+    });
+
+    // Toggle fund section visibility when role radio changes
+    document.querySelectorAll('input[name="editUserRole"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            document.getElementById('editFundSection').style.display =
+                this.value === 'admin' ? 'none' : 'block';
+        });
+    });
+});
+
+function loadFundList() {
+    fetch('/api/get_fund_names')
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success) {
+                availableFunds = response.data;
+                renderFundCheckboxes('fundList', []);
+            } else {
+                showAlert('danger', 'Failed to load fund list: ' + (response.message || 'Unknown error'));
+            }
+        })
+        .catch(function() {
+            showAlert('danger', 'Failed to load fund list. Please try again later.');
+        });
+}
+
+function renderFundCheckboxes(containerId, selectedFunds) {
+    var container = document.getElementById(containerId);
+    if (availableFunds.length === 0) {
+        container.innerHTML = '<div class="text-muted">No funds available</div>';
+        return;
+    }
+    var html = '';
+    availableFunds.forEach(function(fund) {
+        var checked = selectedFunds.indexOf(fund) !== -1 ? 'checked' : '';
+        html += '<div class="form-check">' +
+            '<input class="form-check-input fund-checkbox" type="checkbox" value="' + fund + '" id="' + containerId + '_' + fund + '" ' + checked + '>' +
+            '<label class="form-check-label" for="' + containerId + '_' + fund + '">' + fund + '</label>' +
+            '</div>';
+    });
+    container.innerHTML = html;
+}
+
+function getCheckedFunds(containerId) {
+    var checked = [];
+    document.querySelectorAll('#' + containerId + ' input[type="checkbox"]:checked').forEach(function(cb) {
+        checked.push(cb.value);
+    });
+    return checked;
+}
+
+function createUser() {
+    var username = document.getElementById('username').value.trim();
+    var selectedFunds = getCheckedFunds('fundList');
+
+    if (!username) {
+        showAlert('danger', 'Please enter a username.');
+        return;
+    }
+    if (selectedFunds.length === 0) {
+        showAlert('danger', 'Please select at least one fund.');
+        return;
+    }
+
+    fetch('/api/create_user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, fund_names: selectedFunds })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            showAlert('success', 'User created successfully.');
+            document.getElementById('createUserForm').reset();
+            renderFundCheckboxes('fundList', []);
+            loadUserList();
+        } else {
+            showAlert('danger', response.message || 'Failed to create user.');
+        }
+    })
+    .catch(function() {
+        showAlert('danger', 'Failed to create user. Please try again.');
+    });
+}
+
+function loadUserList() {
+    fetch('/api/get_users')
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success) {
+                renderUserTable(response.data);
+            } else {
+                showAlert('danger', 'Failed to load users: ' + (response.message || ''));
+            }
+        })
+        .catch(function() {
+            showAlert('danger', 'Failed to load user list.');
+        });
+}
+
+function renderUserTable(users) {
+    var tbody = document.getElementById('userTableBody');
+    var countBadge = document.getElementById('userCount');
+    countBadge.textContent = users.length + ' user' + (users.length !== 1 ? 's' : '');
+
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No users found</td></tr>';
+        return;
+    }
+
+    var html = '';
+    users.forEach(function(user) {
+        var roleBadge = user.is_admin
+            ? '<span class="badge bg-warning text-dark"><i class="fas fa-crown me-1"></i>Admin</span>'
+            : '<span class="badge bg-secondary"><i class="fas fa-user me-1"></i>User</span>';
+
+        var fundHtml = '';
+        if (user.is_admin) {
+            fundHtml = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>All Funds</span>';
+        } else if (user.fund_names && user.fund_names.length > 0) {
+            fundHtml = user.fund_names.map(function(f) {
+                return '<span class="badge bg-light text-dark me-1 mb-1">' + f + '</span>';
+            }).join('');
+        } else {
+            fundHtml = '<span class="text-muted">No permissions</span>';
+        }
+
+        var actions = '';
+        if (user.is_admin) {
+            actions = '<span class="text-muted"><i class="fas fa-lock me-1"></i>System Admin</span>';
+        } else {
+            actions =
+                '<button class="btn btn-sm btn-outline-primary me-1" onclick="editUserPermissions(' + user.id + ', \'' + user.username + '\')">' +
+                    '<i class="fas fa-edit"></i> Edit</button>' +
+                '<button class="btn btn-sm btn-outline-warning me-1" onclick="resetPassword(' + user.id + ', \'' + user.username + '\')">' +
+                    '<i class="fas fa-key"></i> Reset</button>' +
+                '<button class="btn btn-sm btn-outline-danger" onclick="deleteUser(' + user.id + ', \'' + user.username + '\')">' +
+                    '<i class="fas fa-trash"></i> Delete</button>';
+        }
+
+        html += '<tr>' +
+            '<td><div class="d-flex align-items-center"><i class="fas fa-user me-2 text-secondary"></i>' + user.username + '</div></td>' +
+            '<td>' + roleBadge + '</td>' +
+            '<td>' + fundHtml + '</td>' +
+            '<td>' + (user.created_at || '-') + '</td>' +
+            '<td>' + actions + '</td>' +
+            '</tr>';
+    });
+    tbody.innerHTML = html;
+}
+
+function editUserPermissions(userId, username) {
+    document.getElementById('editUserId').value = userId;
+    document.getElementById('editUsername').value = username;
+
+    fetch('/api/get_users')
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success) {
+                var user = response.data.find(function(u) { return u.id == userId; });
+                if (user) {
+                    if (user.is_admin) {
+                        document.getElementById('editRoleAdmin').checked = true;
+                        document.getElementById('editFundSection').style.display = 'none';
+                    } else {
+                        document.getElementById('editRoleUser').checked = true;
+                        document.getElementById('editFundSection').style.display = 'block';
+                        renderFundCheckboxes('editFundList', user.fund_names || []);
+                    }
+                }
+            }
+        })
+        .catch(function() {
+            showAlert('danger', 'Failed to load user details.');
+        });
+
+    var modal = new bootstrap.Modal(document.getElementById('editPermissionsModal'));
+    modal.show();
+}
+
+function savePermissions() {
+    var userId = document.getElementById('editUserId').value;
+    var isAdmin = document.getElementById('editRoleAdmin').checked;
+    var selectedFunds = getCheckedFunds('editFundList');
+
+    fetch('/api/update_user_permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, fund_names: selectedFunds, is_admin: isAdmin })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            showAlert('success', 'Permissions updated successfully.');
+            bootstrap.Modal.getInstance(document.getElementById('editPermissionsModal')).hide();
+            loadUserList();
+        } else {
+            showAlert('danger', response.message || 'Failed to update permissions.');
+        }
+    })
+    .catch(function() {
+        showAlert('danger', 'Failed to update permissions. Please try again.');
+    });
+}
+
+function resetPassword(userId, username) {
+    if (!confirm('Reset password for "' + username + '" to "risk_123"?')) return;
+
+    fetch('/api/reset_password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            showAlert('success', 'Password has been reset successfully.');
+        } else {
+            showAlert('danger', response.message || 'Failed to reset password.');
+        }
+    })
+    .catch(function() {
+        showAlert('danger', 'Failed to reset password. Please try again.');
+    });
+}
+
+function deleteUser(userId, username) {
+    if (!confirm('Are you sure you want to delete user "' + username + '"? This action cannot be undone.')) return;
+
+    fetch('/api/delete_user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            showAlert('success', 'User deleted successfully.');
+            loadUserList();
+        } else {
+            showAlert('danger', response.message || 'Failed to delete user.');
+        }
+    })
+    .catch(function() {
+        showAlert('danger', 'Failed to delete user. Please try again.');
+    });
+}
+
+function showAlert(type, message) {
+    var icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+    var alertHtml = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
+        '<i class="fas ' + icon + ' me-2"></i>' + message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+    var container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    setTimeout(function() {
+        var alert = container.querySelector('.alert');
+        if (alert) alert.remove();
+    }, 4000);
+}
+</script>
+{% endblock %}

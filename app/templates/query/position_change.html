@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}Position Change Analysis - Fund Risk Monitor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Title -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4>
+                <i class="fas fa-chart-area me-2"></i>Position Change Analysis
+            </h4>
+            <p class="text-muted">Analyze investor position changes over a specified period. Only records with initial or final amount >= 5M are shown.</p>
+        </div>
+    </div>
+
+    <!-- Query Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-search me-2"></i>Search Criteria
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form id="queryForm">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="fund_name" class="form-label">Fund Name</label>
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start text-truncate" type="button" id="fund_name_dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Select Fund Name
+                                    </button>
+                                    <ul class="dropdown-menu w-100" id="fund_name_list" style="max-height: 200px; overflow-y: auto;"></ul>
+                                </div>
+                                <input type="hidden" id="fund_name" name="fund_name" value="">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="investor_type" class="form-label">Investor Type</label>
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start text-truncate" type="button" id="investor_type_dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Select Investor Type
+                                    </button>
+                                    <ul class="dropdown-menu w-100" id="investor_type_list" style="max-height: 200px; overflow-y: auto;"></ul>
+                                </div>
+                                <input type="hidden" id="investor_type" name="investor_type" value="">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="start_date" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>Start Date <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="end_date" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>End Date <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="end_date" name="end_date" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12 d-flex justify-content-start">
+                                <button type="submit" class="btn btn-info text-white me-2">
+                                    <i class="fas fa-chart-line me-2"></i>Analyze Changes
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="resetBtn">
+                                    <i class="fas fa-undo me-2"></i>Reset
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Results -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Change Analysis Results
+                    </h6>
+                    <span class="badge bg-info" id="resultCount">0 records</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-sm" id="resultTable" style="font-size: 0.9rem;">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th class="sortable" data-field="account" style="width: 8%;">Account <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-field="investor_name" style="width: 13%;">Investor Name <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-field="investor_type" style="width: 8%;">Type <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-field="channel" style="width: 8%;">Channel <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-field="fund_name" style="width: 13%;">Fund Name <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-field="initial_amount" style="width: 10%;">Initial Amount <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-field="final_amount" style="width: 10%;">Final Amount <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-field="change_amount" style="width: 10%;">Change Amount <i class="fas fa-sort"></i></th>
+                                    <th style="width: 8%;">Change Type</th>
+                                    <th class="sortable" data-field="analysis_period" style="width: 12%;">Period <i class="fas fa-sort"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultBody">
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        <i class="fas fa-info-circle me-2"></i>Select criteria and click "Analyze Changes"
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav aria-label="Pagination" class="mt-3">
+                        <ul class="pagination justify-content-center" id="pagination"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentData = [];
+let currentPage = 1;
+const pageSize = 50;
+let currentSortField = null;
+let currentSortOrder = 'asc';
+const COL_COUNT = 10;
+
+const amountFmt = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+document.addEventListener('DOMContentLoaded', function() {
+    setDefaultDates();
+    loadDropdowns();
+    // Auto-query on page load for demo
+    setTimeout(performQuery, 500);
+
+    document.getElementById('queryForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        performQuery();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', function() {
+        document.getElementById('queryForm').reset();
+        setDefaultDates();
+        resetMultiSelect('fund_name', 'fund_name_dropdown', 'Select Fund Name');
+        resetMultiSelect('investor_type', 'investor_type_dropdown', 'Select Investor Type');
+        resetResults();
+    });
+
+    document.getElementById('start_date').addEventListener('change', validateDateRange);
+    document.getElementById('end_date').addEventListener('change', validateDateRange);
+
+    document.addEventListener('click', function(e) {
+        var sortable = e.target.closest('.sortable');
+        if (sortable) sortData(sortable.dataset.field);
+    });
+});
+
+function setDefaultDates() {
+    document.getElementById('start_date').value = '2025-03-07';
+    document.getElementById('end_date').value = '2025-03-14';
+}
+
+function validateDateRange() {
+    var startDate = new Date(document.getElementById('start_date').value);
+    var endDate = new Date(document.getElementById('end_date').value);
+    if (startDate > endDate) {
+        showAlert('Start date cannot be later than end date', 'warning');
+        document.getElementById('end_date').value = document.getElementById('start_date').value;
+    }
+}
+
+function resetMultiSelect(fieldId, btnId, defaultText) {
+    document.getElementById(fieldId).value = '';
+    document.getElementById(btnId).textContent = defaultText;
+    document.querySelectorAll('#' + fieldId + '_list input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+}
+
+function loadDropdowns() {
+    fetch('/api/dropdown_options?type=position')
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success) {
+                buildCheckboxList('fund_name_list', response.data.fund_names, 'fund_name', 'fund_name_dropdown', 'Select Fund Name');
+                buildCheckboxList('investor_type_list', response.data.investor_types, 'investor_type', 'investor_type_dropdown', 'Select Investor Type');
+            }
+        })
+        .catch(function(err) { console.error('Failed to load dropdown options:', err); });
+}
+
+function buildCheckboxList(listId, options, hiddenId, btnId, defaultText) {
+    var list = document.getElementById(listId);
+    list.innerHTML = '';
+    options.forEach(function(opt) {
+        var li = document.createElement('li');
+        li.innerHTML = '<label class="dropdown-item d-flex align-items-center" style="cursor:pointer;">' +
+            '<input type="checkbox" class="form-check-input me-2" value="' + escapeHtml(opt) + '">' +
+            escapeHtml(opt) + '</label>';
+        li.querySelector('input').addEventListener('change', function() {
+            syncMultiSelect(listId, hiddenId, btnId, defaultText);
+        });
+        list.appendChild(li);
+    });
+}
+
+function syncMultiSelect(listId, hiddenId, btnId, defaultText) {
+    var checked = document.querySelectorAll('#' + listId + ' input:checked');
+    var vals = [];
+    checked.forEach(function(cb) { vals.push(cb.value); });
+    document.getElementById(hiddenId).value = vals.join(',');
+    var btn = document.getElementById(btnId);
+    if (vals.length === 0) btn.textContent = defaultText;
+    else if (vals.length <= 2) btn.textContent = vals.join(', ');
+    else btn.textContent = vals.slice(0, 2).join(', ') + ' +' + vals.length + ' items';
+}
+
+function performQuery() {
+    var startDate = document.getElementById('start_date').value;
+    var endDate = document.getElementById('end_date').value;
+    if (!startDate || !endDate) {
+        showAlert('Please select both start date and end date', 'warning');
+        return;
+    }
+
+    var fundVal = document.getElementById('fund_name').value;
+    var typeVal = document.getElementById('investor_type').value;
+    var formData = {
+        start_date: startDate,
+        end_date: endDate,
+        fund_name: fundVal || '',
+        investor_type: typeVal || ''
+    };
+
+    document.getElementById('resultBody').innerHTML = '<tr><td colspan="' + COL_COUNT + '" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Querying data...</td></tr>';
+
+    fetch('/query/api/query_position_change', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            currentData = response.data;
+            // Sort by absolute change amount descending
+            currentData.sort(function(a, b) {
+                return Math.abs(b.change_amount || b.amount_change || 0) - Math.abs(a.change_amount || a.amount_change || 0);
+            });
+            currentPage = 1;
+            document.getElementById('resultCount').textContent = response.total + ' records';
+            displayResults();
+        } else {
+            showAlert('Query failed: ' + (response.error || response.message), 'danger');
+            resetResults();
+        }
+    })
+    .catch(function() {
+        showAlert('Query failed. Please try again later.', 'danger');
+        resetResults();
+    });
+}
+
+function getChangeType(item) {
+    var initial = parseFloat(item.initial_amount) || 0;
+    var final_ = parseFloat(item.final_amount) || 0;
+    if (initial === 0 && final_ > 0) return {label: 'New', cls: 'bg-success'};
+    if (initial > 0 && final_ === 0) return {label: 'Liquidation', cls: 'bg-danger'};
+    return {label: 'Change', cls: 'bg-primary'};
+}
+
+function displayResults() {
+    if (currentData.length === 0) {
+        document.getElementById('resultBody').innerHTML = '<tr><td colspan="' + COL_COUNT + '" class="text-center text-muted py-4"><i class="fas fa-search me-2"></i>No data found</td></tr>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+    }
+
+    var startIdx = (currentPage - 1) * pageSize;
+    var endIdx = Math.min(startIdx + pageSize, currentData.length);
+    var pageData = currentData.slice(startIdx, endIdx);
+
+    var html = '';
+    pageData.forEach(function(item) {
+        var changeAmt = item.change_amount !== undefined ? item.change_amount : item.amount_change;
+        var changeVal = parseFloat(changeAmt) || 0;
+        var changeClass = changeVal >= 0 ? 'text-success' : 'text-danger';
+        var changePrefix = changeVal >= 0 ? '+' : '';
+        var changeType = getChangeType(item);
+
+        html += '<tr>';
+        html += '<td>' + escapeHtml(item.account || '-') + '</td>';
+        html += '<td>' + escapeHtml(item.investor_name || '-') + '</td>';
+        html += '<td>' + escapeHtml(item.investor_type || '-') + '</td>';
+        html += '<td>' + escapeHtml(item.channel || '-') + '</td>';
+        html += '<td>' + escapeHtml(item.fund_name || '-') + '</td>';
+        html += '<td class="text-end">' + amountFmt.format(item.initial_amount || 0) + '</td>';
+        html += '<td class="text-end">' + amountFmt.format(item.final_amount || 0) + '</td>';
+        html += '<td class="text-end ' + changeClass + '">' + changePrefix + amountFmt.format(changeVal) + '</td>';
+        html += '<td class="text-center"><span class="badge ' + changeType.cls + '">' + changeType.label + '</span></td>';
+        html += '<td>' + escapeHtml(item.analysis_period || '-') + '</td>';
+        html += '</tr>';
+    });
+
+    document.getElementById('resultBody').innerHTML = html;
+    updatePagination();
+}
+
+function updatePagination() {
+    var totalPages = Math.ceil(currentData.length / pageSize);
+    var pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    if (totalPages <= 1) return;
+
+    var html = '';
+    html += '<li class="page-item' + (currentPage === 1 ? ' disabled' : '') + '"><a class="page-link" href="#" data-page="' + (currentPage - 1) + '">Previous</a></li>';
+
+    var startPage = Math.max(1, currentPage - 2);
+    var endPage = Math.min(totalPages, currentPage + 2);
+    for (var i = startPage; i <= endPage; i++) {
+        html += '<li class="page-item' + (i === currentPage ? ' active' : '') + '"><a class="page-link" href="#" data-page="' + i + '">' + i + '</a></li>';
+    }
+
+    html += '<li class="page-item' + (currentPage === totalPages ? ' disabled' : '') + '"><a class="page-link" href="#" data-page="' + (currentPage + 1) + '">Next</a></li>';
+
+    pagination.innerHTML = html;
+    pagination.querySelectorAll('a').forEach(function(a) {
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            var page = parseInt(this.dataset.page);
+            if (page >= 1 && page <= totalPages && page !== currentPage) {
+                currentPage = page;
+                displayResults();
+            }
+        });
+    });
+}
+
+function resetResults() {
+    currentData = [];
+    currentPage = 1;
+    document.getElementById('resultBody').innerHTML = '<tr><td colspan="' + COL_COUNT + '" class="text-center text-muted py-4"><i class="fas fa-info-circle me-2"></i>Select criteria and click "Analyze Changes"</td></tr>';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('resultCount').textContent = '0 records';
+}
+
+function sortData(field) {
+    if (currentData.length === 0) return;
+    if (currentSortField === field) {
+        currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortField = field;
+        currentSortOrder = 'asc';
+    }
+
+    currentData.sort(function(a, b) {
+        var aVal = a[field], bVal = b[field];
+        if (['initial_amount', 'final_amount', 'change_amount', 'amount_change'].indexOf(field) >= 0) {
+            aVal = parseFloat(aVal) || 0; bVal = parseFloat(bVal) || 0;
+        }
+        if (currentSortOrder === 'asc') return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+    });
+
+    document.querySelectorAll('.sortable i').forEach(function(icon) { icon.className = 'fas fa-sort'; });
+    var activeIcon = document.querySelector('.sortable[data-field="' + field + '"] i');
+    if (activeIcon) activeIcon.className = 'fas ' + (currentSortOrder === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
+
+    currentPage = 1;
+    displayResults();
+}
+
+function showAlert(message, type) {
+    var container = document.querySelector('.container-fluid');
+    var div = document.createElement('div');
+    div.className = 'alert alert-' + type + ' alert-dismissible fade show';
+    div.setAttribute('role', 'alert');
+    div.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    container.insertBefore(div, container.firstChild);
+    setTimeout(function() { if (div.parentNode) div.remove(); }, 3000);
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

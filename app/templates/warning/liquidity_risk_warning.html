@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block title %}Liquidity Risk Warning Model - Fund Risk Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-normal { color: #28a745; font-weight: bold; }
+    .status-warning { color: #dc3545; font-weight: bold; }
+    .indicator-cell { text-align: right; padding: .5rem; }
+    .indicator-value { font-size: .95rem; font-weight: 600; }
+    .indicator-threshold { font-size: .8rem; color: #6c757d; }
+    .indicator-status { display: inline-block; margin-top: .25rem; }
+    .summary-card { transition: transform 0.2s; }
+    .summary-card:hover { transform: translateY(-2px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h4 class="card-title mb-2">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Liquidity Risk Warning Model
+                    </h4>
+                    <p class="card-text mb-0">
+                        Monitor fund product risk indicators and detect potential risks in a timely manner.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Query Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-search me-2"></i>Query Criteria</h5>
+        </div>
+        <div class="card-body">
+            <form id="queryForm">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="fundType" class="form-label">Fund Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="fundType" required>
+                            <option value="">-- Select Fund Type --</option>
+                            <option value="bond">Bond Fund</option>
+                            <option value="money_market">Money Market Fund</option>
+                            <option value="fixed_income_plus">Fixed Income Plus Fund</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="dateSelect" class="form-label">Query Date <span class="text-danger">*</span></label>
+                        <select class="form-select" id="dateSelect" required disabled>
+                            <option value="">-- Select Fund Type First --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label mb-0">Fund Name <span class="text-danger">*</span></label>
+                            <div id="multiActions" class="btn-group btn-group-sm" style="display:none;">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="selectAllBtn">Select All</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="invertBtn">Invert</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearBtn">Clear</button>
+                            </div>
+                        </div>
+                        <div class="dropdown" id="fundDropdownContainer" style="display:none;">
+                            <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="fundDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                -- Select Fund --
+                            </button>
+                            <ul class="dropdown-menu w-100" id="fundDropdownMenu" style="max-height: 240px; overflow-y: auto;"></ul>
+                        </div>
+                        <select class="form-select" id="fundSelect" required disabled style="display:none;">
+                            <option value="">-- Select Date First --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-warning me-2">
+                            <i class="fas fa-search me-2"></i>Query
+                        </button>
+                        <button type="button" class="btn btn-secondary me-2" id="resetBtn">
+                            <i class="fas fa-undo me-2"></i>Reset
+                        </button>
+                        <button type="button" class="btn btn-success" id="exportBtn">
+                            <i class="fas fa-download me-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4" id="summaryRow" style="display:none;">
+        <div class="col-md-4">
+            <div class="card summary-card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Total Funds</h6>
+                    <h2 id="totalCount">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card summary-card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Warning Count</h6>
+                    <h2 id="warningCount">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card summary-card bg-success text-white">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Normal Count</h6>
+                    <h2 id="normalCount">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-table me-2"></i>Query Results</h5>
+            <span class="badge bg-info" id="resultCount">0 records</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="resultTable">
+                    <thead class="table-dark"><tr></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    var currentData = [];
+    var fundTypeEl = document.getElementById('fundType');
+    var dateSelectEl = document.getElementById('dateSelect');
+    var fundSelectEl = document.getElementById('fundSelect');
+    var fundDropdownContainer = document.getElementById('fundDropdownContainer');
+    var fundDropdownBtn = document.getElementById('fundDropdownBtn');
+    var fundDropdownMenu = document.getElementById('fundDropdownMenu');
+    var multiActions = document.getElementById('multiActions');
+
+    fundTypeEl.addEventListener('change', function() {
+        var ft = this.value;
+        setupSelectMode(ft);
+        loadDates(ft);
+    });
+
+    dateSelectEl.addEventListener('change', function() {
+        loadFundNames(fundTypeEl.value, this.value);
+    });
+
+    document.getElementById('queryForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        queryData();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', resetForm);
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+
+    document.getElementById('selectAllBtn').addEventListener('click', function() {
+        fundDropdownMenu.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = true; });
+        updateDropdownButton();
+    });
+    document.getElementById('invertBtn').addEventListener('click', function() {
+        fundDropdownMenu.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = !cb.checked; });
+        updateDropdownButton();
+    });
+    document.getElementById('clearBtn').addEventListener('click', function() {
+        fundDropdownMenu.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+        updateDropdownButton();
+    });
+
+    function setupSelectMode(fundType) {
+        fundDropdownBtn.textContent = '-- Select Fund --';
+        fundDropdownMenu.innerHTML = '';
+        if (fundType === 'money_market') {
+            fundDropdownContainer.style.display = 'none';
+            fundSelectEl.style.display = 'block';
+            fundSelectEl.disabled = true;
+            multiActions.style.display = 'none';
+        } else {
+            fundSelectEl.style.display = 'none';
+            fundSelectEl.disabled = true;
+            fundDropdownContainer.style.display = fundType ? 'block' : 'none';
+            multiActions.style.display = fundType ? 'flex' : 'none';
+        }
+    }
+
+    function loadDates(fundType) {
+        dateSelectEl.innerHTML = '<option value="">Loading...</option>';
+        dateSelectEl.disabled = true;
+        fundSelectEl.innerHTML = '<option value="">-- Select Date First --</option>';
+        fundSelectEl.disabled = true;
+        fundDropdownBtn.textContent = '-- Select Fund --';
+        fundDropdownMenu.innerHTML = '';
+        if (!fundType) { dateSelectEl.innerHTML = '<option value="">-- Select Fund Type First --</option>'; return; }
+
+        fetch('{{ url_for("warning.api_dates") }}?type=' + fundType)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data && data.data.length > 0) {
+                    dateSelectEl.innerHTML = '<option value="">-- Select Date --</option>';
+                    data.data.forEach(function(d) { dateSelectEl.innerHTML += '<option value="' + d + '">' + d + '</option>'; });
+                    dateSelectEl.disabled = false;
+                } else {
+                    dateSelectEl.innerHTML = '<option value="">No data available</option>';
+                }
+            })
+            .catch(function() { dateSelectEl.innerHTML = '<option value="">Failed to load</option>'; });
+    }
+
+    function loadFundNames(fundType, queryDate) {
+        fundDropdownBtn.textContent = 'Loading...';
+        fundDropdownMenu.innerHTML = '';
+        fundSelectEl.innerHTML = '<option value="">Loading...</option>';
+        fundSelectEl.disabled = true;
+        if (!fundType || !queryDate) {
+            fundDropdownBtn.textContent = '-- Select Date First --';
+            fundSelectEl.innerHTML = '<option value="">-- Select Date First --</option>';
+            return;
+        }
+
+        fetch('{{ url_for("warning.api_fund_names") }}?type=' + fundType + '&date=' + queryDate)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data && data.data.length > 0) {
+                    if (fundType === 'money_market') {
+                        fundSelectEl.innerHTML = '<option value="">-- Select Fund --</option>';
+                        data.data.forEach(function(n) { fundSelectEl.innerHTML += '<option value="' + n + '">' + n + '</option>'; });
+                        fundSelectEl.disabled = false;
+                        fundSelectEl.style.display = 'block';
+                        fundDropdownContainer.style.display = 'none';
+                        multiActions.style.display = 'none';
+                    } else {
+                        fundDropdownMenu.innerHTML = '';
+                        data.data.forEach(function(n, i) {
+                            var li = document.createElement('li');
+                            li.innerHTML = '<label class="dropdown-item-text w-100"><input type="checkbox" class="form-check-input me-2" value="' + n + '" id="fund_chk_' + i + '"> ' + n + '</label>';
+                            fundDropdownMenu.appendChild(li);
+                        });
+                        fundDropdownBtn.textContent = '-- Select Fund --';
+                        fundDropdownContainer.style.display = 'block';
+                        multiActions.style.display = 'flex';
+                        fundDropdownMenu.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.addEventListener('change', updateDropdownButton); });
+                    }
+                } else {
+                    if (fundType === 'money_market') { fundSelectEl.innerHTML = '<option value="">No fund data</option>'; fundSelectEl.disabled = true; }
+                    else { fundDropdownBtn.textContent = 'No fund data'; fundDropdownMenu.innerHTML = ''; }
+                }
+            })
+            .catch(function() {
+                if (fundType === 'money_market') { fundSelectEl.innerHTML = '<option value="">Failed to load</option>'; fundSelectEl.disabled = true; }
+                else { fundDropdownBtn.textContent = 'Failed to load'; fundDropdownMenu.innerHTML = ''; }
+            });
+    }
+
+    function updateDropdownButton() {
+        var c = fundDropdownMenu.querySelectorAll('input[type="checkbox"]:checked').length;
+        fundDropdownBtn.textContent = c > 0 ? c + ' selected' : '-- Select Fund --';
+    }
+
+    function queryData() {
+        var fundType = fundTypeEl.value;
+        var queryDate = dateSelectEl.value;
+        var fundName;
+        if (!fundType) { showToast('Please select a fund type', 'warning'); return; }
+        if (!queryDate) { showToast('Please select a query date', 'warning'); return; }
+        if (fundType === 'money_market') {
+            fundName = fundSelectEl.value;
+            if (!fundName) { showToast('Please select a fund name', 'warning'); return; }
+        } else {
+            var checked = fundDropdownMenu.querySelectorAll('input[type="checkbox"]:checked');
+            fundName = Array.from(checked).map(function(cb) { return cb.value; });
+            if (fundName.length === 0) { showToast('Please select at least one fund', 'warning'); return; }
+        }
+
+        fetch('{{ url_for("warning.api_query_smoke_index") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fund_type: fundType, fund_name: fundName, query_date: queryDate })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.success) {
+                currentData = resp.data;
+                displayResults(resp.data, fundType);
+                document.getElementById('resultCount').textContent = (resp.total || resp.data.length) + ' records';
+                updateSummary(resp.data, fundType);
+            } else { showToast('Query failed: ' + (resp.message || 'Unknown error'), 'danger'); }
+        })
+        .catch(function() { showToast('Query failed. Please try again later.', 'danger'); });
+    }
+
+    function updateSummary(data, fundType) {
+        var names = getIndicatorNames(fundType);
+        var total = data.length, warn = 0;
+        data.forEach(function(item) {
+            var c = item.indicator_count || names.length;
+            for (var i = 1; i <= c; i++) {
+                var s = item['indicator' + i + '_status'];
+                if (s === 'Warning' || s === '\u9884\u8b66') { warn++; break; }
+            }
+        });
+        document.getElementById('totalCount').textContent = total;
+        document.getElementById('warningCount').textContent = warn;
+        document.getElementById('normalCount').textContent = total - warn;
+        document.getElementById('summaryRow').style.display = 'flex';
+    }
+
+    function getIndicatorNames(ft) {
+        if (ft === 'bond') return ['High Liquidity Assets Ratio', 'AA & Below Bond Ratio', 'AA(2) & Below Bond Ratio', 'Low-rated Single Issuer Ratio', 'Leverage Ratio', 'Real Estate Ratio'];
+        if (ft === 'money_market') return ['14-Day Maturing Assets Ratio', 'Valuation Volatility Assets', 'Shadow Deviation', 'Leverage Ratio'];
+        if (ft === 'fixed_income_plus') return ['High Liquidity Assets Ratio', 'AA & Below Bond Ratio', 'AA(2) & Below Bond Ratio', 'Low-rated Single Issuer Ratio', 'Real Estate Ratio', 'Leverage Ratio', 'Equity Securities Ratio'];
+        return [];
+    }
+
+    function displayResults(data, fundType) {
+        var tbody = document.querySelector('#resultTable tbody');
+        var theadRow = document.querySelector('#resultTable thead tr');
+        tbody.innerHTML = ''; theadRow.innerHTML = '';
+        if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="20" class="text-center text-muted">No data available</td></tr>'; return; }
+
+        var names = getIndicatorNames(fundType);
+        var ic = data[0].indicator_count || names.length;
+        theadRow.innerHTML = '<th>Fund Name</th><th>Monitor Date</th>';
+        names.forEach(function(n) { theadRow.innerHTML += '<th>' + n + '</th>'; });
+
+        data.forEach(function(item) {
+            var tr = document.createElement('tr');
+            var h = '<td>' + item.fund_name + '</td><td>' + item.monitor_date + '</td>';
+            for (var i = 1; i <= ic; i++) {
+                var v = item['indicator' + i + '_value'], th = item['indicator' + i + '_threshold'], st = item['indicator' + i + '_status'];
+                h += '<td class="indicator-cell">';
+                if (v !== null && v !== undefined) {
+                    h += '<div class="indicator-value">' + formatAuto(v) + '</div>';
+                    if (th !== null && th !== undefined) h += '<div class="indicator-threshold">Threshold: ' + formatAuto(th) + '</div>';
+                    if (st) { var w = (st === 'Warning' || st === '\u9884\u8b66'); h += '<div class="indicator-status"><span class="badge ' + (w ? 'bg-danger' : 'bg-success') + '">' + (w ? 'Warning' : 'Normal') + '</span></div>'; }
+                } else { h += '<div class="text-muted text-end">-</div>'; }
+                h += '</td>';
+            }
+            tr.innerHTML = h; tbody.appendChild(tr);
+        });
+    }
+
+    function resetForm() {
+        document.getElementById('queryForm').reset();
+        dateSelectEl.innerHTML = '<option value="">-- Select Fund Type First --</option>'; dateSelectEl.disabled = true;
+        fundSelectEl.innerHTML = '<option value="">-- Select Date First --</option>'; fundSelectEl.disabled = true; fundSelectEl.style.display = 'none';
+        fundDropdownBtn.textContent = '-- Select Fund --'; fundDropdownMenu.innerHTML = '';
+        fundDropdownContainer.style.display = 'none'; multiActions.style.display = 'none';
+        document.querySelector('#resultTable tbody').innerHTML = ''; document.querySelector('#resultTable thead tr').innerHTML = '';
+        document.getElementById('resultCount').textContent = '0 records';
+        document.getElementById('summaryRow').style.display = 'none';
+        currentData = [];
+    }
+
+    function exportData() {
+        if (currentData.length === 0) { showToast('No data to export', 'warning'); return; }
+        var ft = fundTypeEl.value, names = getIndicatorNames(ft);
+        var csv = 'Fund Name,Monitor Date';
+        names.forEach(function(n) { csv += ',' + n + ' Value,' + n + ' Threshold,' + n + ' Status'; });
+        csv += '\n';
+        currentData.forEach(function(item) {
+            var ic = item.indicator_count || names.length;
+            var row = '"' + item.fund_name + '","' + item.monitor_date + '"';
+            for (var i = 1; i <= ic; i++) row += ',' + (item['indicator' + i + '_value'] || '') + ',' + (item['indicator' + i + '_threshold'] || '') + ',' + (item['indicator' + i + '_status'] || '');
+            csv += row + '\n';
+        });
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'liquidity_risk_warning_data.csv'; a.style.visibility = 'hidden';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        showToast('Data exported successfully', 'success');
+    }
+
+    function formatAuto(val) {
+        var n = Number(val); if (!isFinite(n)) return val;
+        if (n >= 0 && n <= 1) return (n * 100).toFixed(2) + '%';
+        return n.toFixed(2);
+    }
+
+    function showToast(msg, type) {
+        var old = document.getElementById('appToast'); if (old) old.remove();
+        var bg = type === 'success' ? 'bg-success' : type === 'warning' ? 'bg-warning text-dark' : 'bg-danger';
+        document.body.insertAdjacentHTML('beforeend', '<div id="appToast" class="toast align-items-center ' + bg + ' text-white border-0 position-fixed top-0 end-0 m-3" style="z-index:9999;" role="alert"><div class="d-flex"><div class="toast-body">' + msg + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>');
+        new bootstrap.Toast(document.getElementById('appToast'), { delay: 3000 }).show();
+    }
+})();
+</script>
+{% endblock %}

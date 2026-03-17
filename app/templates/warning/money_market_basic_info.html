@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Money Market Fund Basic Info - Fund Risk Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .indicator-item { padding: 0.75rem; border-bottom: 1px solid #dee2e6; transition: background-color 0.2s; }
+    .indicator-item:hover { background-color: #f8f9fa; }
+    .indicator-label { font-weight: 600; color: #495057; }
+    .indicator-value { color: #28a745; font-size: 1.1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <h4 class="mb-4"><i class="fas fa-money-bill-wave text-success me-2"></i>Money Market Fund Basic Info</h4>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Fund Name</label>
+                    <select id="fundSelect" class="form-select"><option value="">-- Select Fund --</option></select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Date</label>
+                    <select id="dateSelect" class="form-select" disabled><option value="">-- Select Fund First --</option></select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button id="queryBtn" class="btn btn-success"><i class="fas fa-calculator me-1"></i>Calculate</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultsPanel" style="display:none;">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Basic Indicator Results</h5>
+            </div>
+            <div class="card-body" id="resultsContent"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+    var fundEl = document.getElementById('fundSelect');
+    var dateEl = document.getElementById('dateSelect');
+
+    loadFunds();
+
+    fundEl.addEventListener('change', function() {
+        if (this.value) loadDates(this.value);
+        else { dateEl.innerHTML = '<option value="">-- Select Fund First --</option>'; dateEl.disabled = true; }
+    });
+
+    document.getElementById('queryBtn').addEventListener('click', doQuery);
+
+    function loadFunds() {
+        fetch('{{ url_for("warning.api_fund_names") }}?type=money_market')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data) {
+                    fundEl.innerHTML = '<option value="">-- Select Fund --</option>';
+                    data.data.forEach(function(n) { fundEl.innerHTML += '<option value="' + n + '">' + n + '</option>'; });
+                }
+            }).catch(function() { fundEl.innerHTML = '<option value="">Failed to load</option>'; });
+    }
+
+    function loadDates(fundName) {
+        dateEl.innerHTML = '<option value="">Loading...</option>'; dateEl.disabled = true;
+        fetch('{{ url_for("warning.api_dates") }}?type=money_market&fund_name=' + encodeURIComponent(fundName))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data && data.data.length > 0) {
+                    dateEl.innerHTML = '<option value="">-- Select Date --</option>';
+                    data.data.forEach(function(d) { dateEl.innerHTML += '<option value="' + d + '">' + d + '</option>'; });
+                    dateEl.disabled = false;
+                } else { dateEl.innerHTML = '<option value="">No dates available</option>'; }
+            }).catch(function() { dateEl.innerHTML = '<option value="">Failed to load</option>'; });
+    }
+
+    function doQuery() {
+        var fundName = fundEl.value, date = dateEl.value;
+        if (!fundName || !date) { alert('Please select both fund name and date.'); return; }
+
+        var panel = document.getElementById('resultsPanel'), content = document.getElementById('resultsContent');
+        panel.style.display = 'block';
+        content.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Calculating data, please wait...</p></div>';
+
+        fetch('{{ url_for("warning.api_money_market_calculate") }}', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fund_name: fundName, date: date })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) displayResult(data.basic_info);
+            else content.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>' + (data.message || 'Calculation failed') + '</div>';
+        })
+        .catch(function(err) { content.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Calculation failed: ' + err.message + '</div>'; });
+    }
+
+    function displayResult(r) {
+        if (!r) { document.getElementById('resultsContent').innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No data found</div>'; return; }
+
+        var fmtDate = function(d) { try { var dt = new Date(d); if (!isNaN(dt)) return dt.toISOString().slice(0, 10); } catch(e) {} return d || '-'; };
+        var fn = r.fund_name || r['\u4ea7\u54c1\u540d\u79f0'] || '-';
+        var td = r.trade_date || r['\u4ea4\u6613\u65e5\u671f'] || '-';
+        var na = r.net_asset_billion || r['\u51c0\u8d44\u4ea7(\u4ebf)'] || '-';
+        var pd = r.portfolio_days || r['\u7ec4\u5408\u5269\u4f59\u5929\u6570'] || '-';
+        var y7 = r.yield_7d || r['7\u5929\u5e74\u5316\u6536\u76ca\u7387'] || '-';
+        var a14 = r.asset_14days_billion || r['14\u5929\u5185\u5230\u671f\u8d44\u4ea7\u89c4\u6a21(\u4ebf)'] || '-';
+
+        document.getElementById('resultsContent').innerHTML =
+            '<div class="row"><div class="col-md-12"><table class="table table-bordered table-hover">' +
+            '<thead class="table-light"><tr><th>Fund Name</th><th>Trade Date</th><th>Net Asset (Billion)</th><th>Portfolio Maturity (Days)</th><th>7-Day Annualized Yield</th><th>14-Day Maturing Assets (Billion)</th></tr></thead>' +
+            '<tbody><tr><td><strong>' + fn + '</strong></td><td>' + fmtDate(td) + '</td><td class="text-end">' + na + '</td><td class="text-end">' + pd + '</td><td class="text-end">' + y7 + '</td><td class="text-end">' + a14 + '</td></tr></tbody></table></div></div>' +
+            '<div class="alert alert-info mt-3"><i class="fas fa-info-circle me-2"></i><strong>Note:</strong> Please verify the calculated results carefully.</div>';
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Operation Logs - Fund Risk Monitoring System{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-item {
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+.stat-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+}
+.data-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+.data-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+.log-detail {
+    max-width: 350px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4><i class="fas fa-history me-2"></i>Operation Logs</h4>
+            <p class="text-muted">View system activity records and audit trail</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Filters</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="filterUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="filterUsername" placeholder="Enter username">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filterType" class="form-label">Operation Type</label>
+                            <select class="form-select" id="filterType">
+                                <option value="">All Types</option>
+                                <option value="login">Login</option>
+                                <option value="logout">Logout</option>
+                                <option value="data_import">Data Import</option>
+                                <option value="query">Query</option>
+                                <option value="user_management">User Management</option>
+                                <option value="data_export">Data Export</option>
+                                <option value="data_delete">Data Delete</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filterStartDate" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="filterStartDate">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filterEndDate" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="filterEndDate">
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-dark me-2" id="searchBtn">
+                                <i class="fas fa-search me-1"></i>Search
+                            </button>
+                            <button class="btn btn-secondary me-2" id="resetBtn">
+                                <i class="fas fa-undo me-1"></i>Reset
+                            </button>
+                            <button class="btn btn-info" id="refreshBtn">
+                                <i class="fas fa-sync-alt me-1"></i>Refresh
+                            </button>
+                            <div class="form-check form-switch d-inline-block ms-3">
+                                <input class="form-check-input" type="checkbox" id="autoRefreshToggle">
+                                <label class="form-check-label" for="autoRefreshToggle">Auto-refresh (30s)</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>Activity Records</h6>
+                    <div>
+                        <span class="badge bg-dark me-2" id="totalCount">0 records</span>
+                        <span class="badge bg-info" id="pageInfo">Page 1</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th width="6%">#</th>
+                                    <th width="12%">User</th>
+                                    <th width="14%">Type</th>
+                                    <th width="33%">Details</th>
+                                    <th width="14%">IP Address</th>
+                                    <th width="21%">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        Loading logs...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav id="paginationNav" style="display:none;">
+                        <ul class="pagination justify-content-center" id="paginationList"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle me-2"></i>Log Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">User</label>
+                        <div id="detailUser" class="form-control-plaintext border rounded p-2 bg-light"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Operation Type</label>
+                        <div id="detailType" class="form-control-plaintext border rounded p-2 bg-light"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">IP Address</label>
+                        <div id="detailIP" class="form-control-plaintext border rounded p-2 bg-light"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Time</label>
+                        <div id="detailTime" class="form-control-plaintext border rounded p-2 bg-light"></div>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label class="form-label fw-bold">Details</label>
+                        <div id="detailContent" class="form-control-plaintext border rounded p-3 bg-light" style="min-height:80px; white-space:pre-wrap;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var currentPage = 1;
+var perPage = 50;
+var autoRefreshTimer = null;
+var allLogs = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    setDefaultDates();
+    loadLogs(1);
+
+    document.getElementById('searchBtn').addEventListener('click', function() {
+        currentPage = 1;
+        loadLogs(1);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', function() {
+        document.getElementById('filterUsername').value = '';
+        document.getElementById('filterType').value = '';
+        setDefaultDates();
+        currentPage = 1;
+        loadLogs(1);
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', function() {
+        var icon = this.querySelector('i');
+        icon.classList.add('fa-spin');
+        loadLogs(currentPage);
+        setTimeout(function() { icon.classList.remove('fa-spin'); }, 1000);
+    });
+
+    document.getElementById('autoRefreshToggle').addEventListener('change', function() {
+        if (this.checked) {
+            autoRefreshTimer = setInterval(function() { loadLogs(currentPage); }, 30000);
+        } else {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            autoRefreshTimer = null;
+        }
+    });
+});
+
+function setDefaultDates() {
+    var today = new Date();
+    var weekAgo = new Date();
+    weekAgo.setDate(today.getDate() - 7);
+    document.getElementById('filterEndDate').value = today.toISOString().split('T')[0];
+    document.getElementById('filterStartDate').value = weekAgo.toISOString().split('T')[0];
+}
+
+function loadLogs(page) {
+    currentPage = page;
+    var params = new URLSearchParams();
+    params.set('page', page);
+    params.set('per_page', perPage);
+
+    var username = document.getElementById('filterUsername').value.trim();
+    var opType = document.getElementById('filterType').value;
+    var startDate = document.getElementById('filterStartDate').value;
+    var endDate = document.getElementById('filterEndDate').value;
+
+    if (username) params.set('username', username);
+    if (opType) params.set('operation_type', opType);
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
+
+    fetch('/data/api/operation_logs?' + params.toString())
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            var logs = response.data || [];
+            var total = response.total || 0;
+            allLogs = logs;
+
+            document.getElementById('totalCount').textContent = total + ' record' + (total !== 1 ? 's' : '');
+            var totalPages = Math.ceil(total / perPage) || 1;
+            document.getElementById('pageInfo').textContent = 'Page ' + currentPage + ' / ' + totalPages;
+
+            renderLogTable(logs);
+            renderPagination(total, totalPages);
+        })
+        .catch(function() {
+            document.getElementById('logTableBody').innerHTML =
+                '<tr><td colspan="6" class="text-center text-danger py-4">' +
+                '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load logs.</td></tr>';
+        });
+}
+
+function renderLogTable(logs) {
+    var tbody = document.getElementById('logTableBody');
+    if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">' +
+            '<i class="fas fa-inbox me-2"></i>No operation logs found.</td></tr>';
+        return;
+    }
+
+    var typeBadgeMap = {
+        login: 'bg-success', logout: 'bg-info',
+        data_import: 'bg-warning text-dark', query: 'bg-primary',
+        user_management: 'bg-danger', data_export: 'bg-secondary',
+        data_delete: 'bg-danger'
+    };
+
+    var html = '';
+    logs.forEach(function(log, idx) {
+        var rowNum = (currentPage - 1) * perPage + idx + 1;
+        var badgeClass = typeBadgeMap[log.operation_type] || 'bg-light text-dark';
+        var detail = log.operation_detail || '-';
+        var shortDetail = detail.length > 80 ? detail.substring(0, 80) + '...' : detail;
+
+        html += '<tr>' +
+            '<td class="text-center">' + rowNum + '</td>' +
+            '<td><i class="fas fa-user me-1 text-secondary"></i>' + (log.username || '-') + '</td>' +
+            '<td><span class="badge ' + badgeClass + '">' + (log.operation_type || '-') + '</span></td>' +
+            '<td class="log-detail" title="' + escapeHtml(detail) + '">' +
+                '<span style="cursor:pointer;" onclick="showDetail(' + idx + ')">' + escapeHtml(shortDetail) + '</span></td>' +
+            '<td>' + (log.ip_address ? '<code>' + log.ip_address + '</code>' : '<span class="text-muted">-</span>') + '</td>' +
+            '<td><i class="fas fa-clock text-muted me-1"></i>' + (log.created_at || '-') + '</td>' +
+            '</tr>';
+    });
+    tbody.innerHTML = html;
+}
+
+function renderPagination(total, totalPages) {
+    var nav = document.getElementById('paginationNav');
+    var list = document.getElementById('paginationList');
+
+    if (totalPages <= 1) {
+        nav.style.display = 'none';
+        return;
+    }
+    nav.style.display = 'block';
+
+    var html = '';
+    // Previous
+    html += '<li class="page-item' + (currentPage <= 1 ? ' disabled' : '') + '">' +
+        '<a class="page-link" href="#" onclick="loadLogs(' + (currentPage - 1) + ');return false;">' +
+        '<i class="fas fa-chevron-left"></i></a></li>';
+
+    // Page numbers
+    var startPage = Math.max(1, currentPage - 2);
+    var endPage = Math.min(totalPages, currentPage + 2);
+    if (startPage > 1) {
+        html += '<li class="page-item"><a class="page-link" href="#" onclick="loadLogs(1);return false;">1</a></li>';
+        if (startPage > 2) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    }
+    for (var p = startPage; p <= endPage; p++) {
+        html += '<li class="page-item' + (p === currentPage ? ' active' : '') + '">' +
+            '<a class="page-link" href="#" onclick="loadLogs(' + p + ');return false;">' + p + '</a></li>';
+    }
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        html += '<li class="page-item"><a class="page-link" href="#" onclick="loadLogs(' + totalPages + ');return false;">' + totalPages + '</a></li>';
+    }
+
+    // Next
+    html += '<li class="page-item' + (currentPage >= totalPages ? ' disabled' : '') + '">' +
+        '<a class="page-link" href="#" onclick="loadLogs(' + (currentPage + 1) + ');return false;">' +
+        '<i class="fas fa-chevron-right"></i></a></li>';
+
+    list.innerHTML = html;
+}
+
+function showDetail(idx) {
+    var log = allLogs[idx];
+    if (!log) return;
+    document.getElementById('detailUser').textContent = log.username || '-';
+    document.getElementById('detailType').textContent = log.operation_type || '-';
+    document.getElementById('detailIP').textContent = log.ip_address || 'Not recorded';
+    document.getElementById('detailTime').textContent = log.created_at || '-';
+    document.getElementById('detailContent').textContent = log.operation_detail || '-';
+    var modal = new bootstrap.Modal(document.getElementById('detailModal'));
+    modal.show();
+}
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

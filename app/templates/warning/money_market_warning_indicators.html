@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Money Market Fund Warning Indicators - Fund Risk Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-badge { padding: 0.25rem 0.75rem; border-radius: 0.25rem; font-size: 0.875rem; font-weight: 600; }
+    .status-normal { background-color: #d4edda; color: #155724; }
+    .status-warning { background-color: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <h4 class="mb-4"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Money Market Fund Warning Indicators</h4>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Fund Name</label>
+                    <select id="fundSelect" class="form-select"><option value="">-- Select Fund --</option></select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Date</label>
+                    <select id="dateSelect" class="form-select" disabled><option value="">-- Select Fund First --</option></select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button id="queryBtn" class="btn btn-danger"><i class="fas fa-calculator me-1"></i>Calculate</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultsPanel" style="display:none;">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Warning Indicator Results</h5>
+            </div>
+            <div class="card-body" id="resultsContent"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+    var fundEl = document.getElementById('fundSelect');
+    var dateEl = document.getElementById('dateSelect');
+
+    loadFunds();
+
+    fundEl.addEventListener('change', function() {
+        if (this.value) loadDates(this.value);
+        else { dateEl.innerHTML = '<option value="">-- Select Fund First --</option>'; dateEl.disabled = true; }
+    });
+
+    document.getElementById('queryBtn').addEventListener('click', doQuery);
+
+    function loadFunds() {
+        fetch('{{ url_for("warning.api_fund_names") }}?type=money_market')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data) {
+                    fundEl.innerHTML = '<option value="">-- Select Fund --</option>';
+                    data.data.forEach(function(n) { fundEl.innerHTML += '<option value="' + n + '">' + n + '</option>'; });
+                }
+            }).catch(function() { fundEl.innerHTML = '<option value="">Failed to load</option>'; });
+    }
+
+    function loadDates(fundName) {
+        dateEl.innerHTML = '<option value="">Loading...</option>'; dateEl.disabled = true;
+        fetch('{{ url_for("warning.api_dates") }}?type=money_market&fund_name=' + encodeURIComponent(fundName))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.data && data.data.length > 0) {
+                    dateEl.innerHTML = '<option value="">-- Select Date --</option>';
+                    data.data.forEach(function(d) { dateEl.innerHTML += '<option value="' + d + '">' + d + '</option>'; });
+                    dateEl.disabled = false;
+                } else { dateEl.innerHTML = '<option value="">No dates available</option>'; }
+            }).catch(function() { dateEl.innerHTML = '<option value="">Failed to load</option>'; });
+    }
+
+    function doQuery() {
+        var fundName = fundEl.value, date = dateEl.value;
+        if (!fundName || !date) { alert('Please select both fund name and date.'); return; }
+
+        var panel = document.getElementById('resultsPanel'), content = document.getElementById('resultsContent');
+        panel.style.display = 'block';
+        content.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-danger" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Calculating data, please wait...</p></div>';
+
+        fetch('{{ url_for("warning.api_money_market_calculate") }}', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fund_name: fundName, date: date })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) displayResult(data.warning_indicators);
+            else content.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>' + (data.message || 'Calculation failed') + '</div>';
+        })
+        .catch(function(err) { content.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Calculation failed: ' + err.message + '</div>'; });
+    }
+
+    function displayResult(r) {
+        if (!r) { document.getElementById('resultsContent').innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No data found</div>'; return; }
+
+        var fmtDate = function(d) { try { var dt = new Date(d); if (!isNaN(dt)) return dt.toISOString().slice(0, 10); } catch(e) {} return d || '-'; };
+        var badge = function(st) {
+            var w = (st === 'Warning' || st === '\u9884\u8b66');
+            return w ? '<span class="status-badge status-warning"><i class="fas fa-exclamation-triangle me-1"></i>Warning</span>'
+                     : '<span class="status-badge status-normal"><i class="fas fa-check-circle me-1"></i>Normal</span>';
+        };
+        var fmtVal = function(v) { if (typeof v === 'number') return v.toFixed(4); return v || '-'; };
+        var fmtPct = function(v) { var n = typeof v === 'number' ? v : Number(v); if (!isNaN(n)) return (n * 100).toFixed(2) + '%'; return v || '-'; };
+
+        var fn = r.fund_name || r['\u4ea7\u54c1\u540d\u79f0'] || '-';
+        var td = r.trade_date || r['\u4ea4\u6613\u65e5\u671f'] || '-';
+        var i1 = r.indicator1_14day_ratio || r['\u6307\u68071\uff1a14\u5929\u5185\u5230\u671f\u8d44\u4ea7\u5360\u6bd4'];
+        var i2 = r.indicator2_valuation_volatility || r['\u6307\u68072\uff1a\u4f30\u503c\u6ce2\u52a8\u8d44\u4ea7'];
+        var i3 = r.indicator3_shadow_deviation || r['\u6307\u68073:\u5f71\u5b50\u504f\u79bb\u5ea6'];
+        var i4 = r.indicator4_leverage || r['\u6307\u68074\uff1a\u6760\u6746\u7387'];
+
+        document.getElementById('resultsContent').innerHTML =
+            '<div class="row"><div class="col-md-12"><table class="table table-bordered table-hover">' +
+            '<thead class="table-light"><tr><th>Fund Name</th><th>Trade Date</th>' +
+            '<th>Ind. 1: 14-Day Maturing Assets Ratio</th><th>Status</th>' +
+            '<th>Ind. 2: Valuation Volatility Assets</th><th>Status</th>' +
+            '<th>Ind. 3: Shadow Deviation</th><th>Status</th>' +
+            '<th>Ind. 4: Leverage Ratio</th><th>Status</th></tr></thead>' +
+            '<tbody><tr><td><strong>' + fn + '</strong></td><td>' + fmtDate(td) + '</td>' +
+            '<td class="text-end">' + fmtPct(i1) + '</td><td>' + badge(r.indicator1_status) + '</td>' +
+            '<td class="text-end">' + fmtPct(i2) + '</td><td>' + badge(r.indicator2_status) + '</td>' +
+            '<td class="text-end">' + fmtVal(i3) + '</td><td>' + badge(r.indicator3_status) + '</td>' +
+            '<td class="text-end">' + fmtPct(i4) + '</td><td>' + badge(r.indicator4_status) + '</td>' +
+            '</tr></tbody></table></div></div>' +
+            '<div class="alert alert-warning mt-3"><h6><i class="fas fa-info-circle me-2"></i>Warning Rules:</h6><ul class="mb-0">' +
+            '<li><strong>Indicator 1:</strong> (Actual + 10%) &lt; 30% triggers Warning</li>' +
+            '<li><strong>Indicator 2:</strong> Actual &ge; 85% triggers Warning</li>' +
+            '<li><strong>Indicator 3:</strong> Actual &ge; -0.08% triggers Warning</li>' +
+            '<li><strong>Indicator 4:</strong> Actual &ge; 115% triggers Warning</li></ul></div>' +
+            '<div class="alert alert-info mt-3"><i class="fas fa-info-circle me-2"></i><strong>Note:</strong> Please verify the calculated results carefully.</div>';
+    }
+})();
+</script>
+{% endblock %}

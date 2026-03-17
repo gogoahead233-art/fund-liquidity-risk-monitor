@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Data Management - Fund Risk Monitoring System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4><i class="fas fa-database me-2"></i>Data Management</h4>
+            <p class="text-muted">View data statistics and manage imported records by table, fund, and date range</p>
+        </div>
+    </div>
+
+    <!-- Data Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title mb-1" id="positionCount">-</h4>
+                            <p class="card-text mb-0">Position Records</p>
+                        </div>
+                        <div class="align-self-center"><i class="fas fa-wallet fa-2x opacity-50"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title mb-1" id="transactionCount">-</h4>
+                            <p class="card-text mb-0">Transaction Records</p>
+                        </div>
+                        <div class="align-self-center"><i class="fas fa-exchange-alt fa-2x opacity-50"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-white border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title mb-1" id="warningCount">-</h4>
+                            <p class="card-text mb-0">Warning Records</p>
+                        </div>
+                        <div class="align-self-center"><i class="fas fa-exclamation-triangle fa-2x opacity-50"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title mb-1" id="userCountStat">-</h4>
+                            <p class="card-text mb-0">Users</p>
+                        </div>
+                        <div class="align-self-center"><i class="fas fa-users fa-2x opacity-50"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Conditions Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0"><i class="fas fa-trash me-2"></i>Delete Conditions</h6>
+                </div>
+                <div class="card-body">
+                    <form id="deleteForm">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="tableType" class="form-label">Table Type</label>
+                                <select class="form-select" id="tableType" required>
+                                    <option value="">-- Select table --</option>
+                                    <option value="position">Position</option>
+                                    <option value="transaction">Transaction</option>
+                                    <option value="bond_warning">Bond Warning</option>
+                                    <option value="money_market_warning">Money Market Warning</option>
+                                    <option value="fixed_income_plus_warning">Fixed Income+ Warning</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="fundNameSelect" class="form-label">Fund Name</label>
+                                <select class="form-select" id="fundNameSelect">
+                                    <option value="">All Funds</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="startDate">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="endDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="endDate">
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> Delete operations are irreversible. Please back up important data first.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-danger" id="previewBtn">
+                                <i class="fas fa-search me-2"></i>Preview Delete
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="confirmDeleteBtn" disabled>
+                                <i class="fas fa-trash me-2"></i>Confirm Delete
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Result -->
+    <div class="row mb-4" id="previewSection" style="display:none;">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-eye me-2"></i>Delete Preview</h6>
+                </div>
+                <div class="card-body" id="previewContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var deletePreviewData = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDataCounts();
+    loadFundNames();
+
+    document.getElementById('previewBtn').addEventListener('click', previewDelete);
+    document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+});
+
+function loadDataCounts() {
+    fetch('/data/api/data_counts')
+        .then(function(res) { return res.json(); })
+        .then(function(resp) {
+            var d = resp.data || resp;
+            document.getElementById('positionCount').textContent = formatNumber(d.position_count || 0);
+            document.getElementById('transactionCount').textContent = formatNumber(d.transaction_count || 0);
+            var warningTotal = (d.bond_warning_count || 0) + (d.money_market_warning_count || 0) + (d.fixed_income_plus_warning_count || 0);
+            document.getElementById('warningCount').textContent = formatNumber(warningTotal);
+            document.getElementById('userCountStat').textContent = formatNumber(d.user_count || 0);
+        })
+        .catch(function() {
+            ['positionCount', 'transactionCount', 'warningCount', 'userCountStat'].forEach(function(id) {
+                document.getElementById(id).textContent = 'Error';
+            });
+        });
+}
+
+function loadFundNames() {
+    fetch('/api/get_fund_names')
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success && response.data) {
+                var select = document.getElementById('fundNameSelect');
+                response.data.forEach(function(name) {
+                    var opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    select.appendChild(opt);
+                });
+            }
+        })
+        .catch(function() {});
+}
+
+function previewDelete() {
+    var tableType = document.getElementById('tableType').value;
+    if (!tableType) {
+        showAlert('danger', 'Please select a table type.');
+        return;
+    }
+
+    var payload = {
+        table_type: tableType,
+        fund_name: document.getElementById('fundNameSelect').value,
+        start_date: document.getElementById('startDate').value,
+        end_date: document.getElementById('endDate').value
+    };
+
+    fetch('/data/api/preview_delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            deletePreviewData = payload;
+            var count = response.data ? response.data.count : 0;
+
+            var tableNames = {
+                position: 'Position', transaction: 'Transaction',
+                bond_warning: 'Bond Warning', money_market_warning: 'Money Market Warning',
+                fixed_income_plus_warning: 'Fixed Income+ Warning'
+            };
+
+            var html = '<div class="alert alert-info"><h6>Delete Conditions:</h6><ul>' +
+                '<li>Table: ' + (tableNames[payload.table_type] || payload.table_type) + '</li>';
+            if (payload.fund_name) html += '<li>Fund Name: ' + payload.fund_name + '</li>';
+            if (payload.start_date) html += '<li>Start Date: ' + payload.start_date + '</li>';
+            if (payload.end_date) html += '<li>End Date: ' + payload.end_date + '</li>';
+            html += '</ul></div>';
+
+            html += '<div class="alert alert-warning">' +
+                '<h6>Records to delete: <span class="badge bg-danger fs-6">' + formatNumber(count) + '</span></h6>' +
+                '<p class="mb-0">Please verify the conditions above, then click "Confirm Delete" to proceed.</p></div>';
+
+            document.getElementById('previewContent').innerHTML = html;
+            document.getElementById('previewSection').style.display = 'block';
+            document.getElementById('confirmDeleteBtn').disabled = false;
+        } else {
+            showAlert('danger', 'Preview failed: ' + (response.message || 'Unknown error'));
+        }
+    })
+    .catch(function() {
+        showAlert('danger', 'Preview request failed. Please try again.');
+    });
+}
+
+function confirmDelete() {
+    if (!deletePreviewData) return;
+    if (!confirm('Are you sure you want to delete these records? This action cannot be undone!')) return;
+
+    fetch('/data/api/confirm_delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(deletePreviewData)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            var deleted = response.data ? response.data.deleted_count : 0;
+            showAlert('success', 'Deleted successfully! ' + formatNumber(deleted) + ' records removed.');
+            document.getElementById('deleteForm').reset();
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('confirmDeleteBtn').disabled = true;
+            deletePreviewData = null;
+            loadDataCounts();
+        } else {
+            showAlert('danger', 'Delete failed: ' + (response.message || 'Unknown error'));
+        }
+    })
+    .catch(function() {
+        showAlert('danger', 'Delete request failed. Please try again.');
+    });
+}
+
+function formatNumber(n) {
+    return Number(n).toLocaleString();
+}
+
+function showAlert(type, message) {
+    var icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+    var alertHtml = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
+        '<i class="fas ' + icon + ' me-2"></i>' + message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+    var container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    setTimeout(function() {
+        var alert = container.querySelector('.alert');
+        if (alert) alert.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

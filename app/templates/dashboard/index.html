@@ -1,0 +1,531 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Fund Liquidity Risk Monitoring System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Liquidity Risk Cockpit -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h4 class="card-title mb-0">
+                        <a href="{{ url_for('warning.liquidity_risk_warning') }}" class="text-white text-decoration-none">
+                            <i class="fas fa-chart-line me-2"></i>Liquidity Risk Cockpit
+                        </a>
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div id="smokeIndexCockpit">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading warning data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fund Risk Warning Monitoring -->
+    <div class="row mb-3 mt-5">
+        <div class="col-12">
+            <div class="section-header bg-gradient-primary text-white p-3 rounded-top">
+                <h4 class="mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>Fund Risk Warning Monitoring
+                </h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-primary text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h4 class="card-title mb-3">Bond Fund Warning</h4>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('warning.bond_basic_info') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-info-circle me-1"></i>Basic Info Query
+                        </a>
+                        <a href="{{ url_for('warning.bond_warning_indicators') }}" class="btn btn-primary">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Warning Indicators
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-warning text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <h4 class="card-title mb-3">Money Market Fund Warning</h4>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('warning.money_market_basic_info') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-info-circle me-1"></i>Basic Info Query
+                        </a>
+                        <a href="{{ url_for('warning.money_market_warning_indicators') }}" class="btn btn-warning">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Warning Indicators
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-info text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-chart-area"></i>
+                    </div>
+                    <h4 class="card-title mb-3">Fixed Income Plus Warning</h4>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('warning.fixed_income_plus_basic_info') }}" class="btn btn-outline-info">
+                            <i class="fas fa-info-circle me-1"></i>Basic Info Query
+                        </a>
+                        <a href="{{ url_for('warning.fixed_income_plus_warning_indicators') }}" class="btn btn-info">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Warning Indicators
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fund Liability Analysis -->
+    <div class="row mb-3 mt-5">
+        <div class="col-12">
+            <div class="section-header bg-gradient-primary text-white p-3 rounded-top">
+                <h4 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Fund Liability Analysis
+                </h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-5 col-md-6 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-primary text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h4 class="card-title mb-3">Holder Structure Analysis</h4>
+                    <a href="{{ url_for('analysis.holder_structure') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-search me-2"></i>Enter Analysis
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5 col-md-6 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-warning text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <h4 class="card-title mb-3">Redemption Scenario Analysis</h4>
+                    <a href="{{ url_for('analysis.redemption_scenario') }}" class="btn btn-warning btn-lg">
+                        <i class="fas fa-calculator me-2"></i>Enter Analysis
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fund Liability & Transaction Query -->
+    <div class="row mb-3 mt-5">
+        <div class="col-12">
+            <div class="section-header bg-gradient-success text-white p-3 rounded-top">
+                <h4 class="mb-0">
+                    <i class="fas fa-search me-2"></i>Fund Liability & Transaction Query
+                </h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-success text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <h5 class="card-title">Fund Holder Query</h5>
+                    <a href="{{ url_for('query.position_query') }}" class="btn btn-outline-success">
+                        <i class="fas fa-search me-2"></i>Query Now
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-info text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h5 class="card-title">Fund Transaction Query</h5>
+                    <a href="{{ url_for('query.transaction_query') }}" class="btn btn-outline-info">
+                        <i class="fas fa-search me-2"></i>Query Now
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-secondary text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-chart-area"></i>
+                    </div>
+                    <h5 class="card-title">Position Change</h5>
+                    <a href="{{ url_for('query.position_change') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-chart-line me-2"></i>View Changes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if current_user.is_admin %}
+    <!-- Administration (Admin only) -->
+    <div class="row mb-3 mt-5">
+        <div class="col-12">
+            <div class="section-header bg-gradient-dark text-white p-3 rounded-top">
+                <h4 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Administration
+                </h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-secondary text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h5 class="card-title">User Management</h5>
+                    <a href="{{ url_for('auth.user_management') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-user-cog me-2"></i>Manage Users
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-dark text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <h5 class="card-title">Operation Logs</h5>
+                    <a href="{{ url_for('data_mgmt.operation_logs_page') }}" class="btn btn-outline-dark">
+                        <i class="fas fa-clipboard-list me-2"></i>View Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <div class="feature-icon bg-warning text-white rounded-circle mb-3 mx-auto">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h5 class="card-title">Risk Warning Model</h5>
+                    <a href="{{ url_for('warning.liquidity_risk_warning') }}" class="btn btn-outline-warning">
+                        <i class="fas fa-shield-alt me-2"></i>Risk Warning
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .container-fluid { max-width: 1400px; margin: 0 auto; }
+
+    .section-header {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .section-header.bg-gradient-success {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    }
+
+    .section-header.bg-gradient-dark {
+        background: linear-gradient(135deg, #343a40 0%, #23272b 100%);
+    }
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    }
+
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    /* Summary stats bar */
+    .stats-bar {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.5rem;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+
+    .stat-item .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .stat-item .stat-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+    function start() { loadSmokeIndexCockpit(); }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start);
+    } else {
+        start();
+    }
+})();
+
+function loadSmokeIndexCockpit() {
+    var container = document.getElementById('smokeIndexCockpit');
+    if (!container) return;
+
+    var emptyHtml = '<div class="alert alert-warning text-center">' +
+        '<i class="fas fa-exclamation-triangle me-2"></i>No warning data available</div>';
+    var errHtml = function(err) {
+        return '<div class="alert alert-danger text-center">' +
+            '<i class="fas fa-times-circle me-2"></i>Failed to load data: ' + err + '</div>';
+    };
+
+    fetch('/api/smoke_index_cockpit', {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+        if (resp && resp.success && resp.all_funds && resp.all_funds.length > 0) {
+            renderCockpit(resp);
+        } else {
+            container.innerHTML = emptyHtml;
+        }
+    })
+    .catch(function(err) {
+        container.innerHTML = errHtml(err.message || err);
+    });
+}
+
+function renderCockpit(data) {
+    var container = document.getElementById('smokeIndexCockpit');
+    if (!container) return;
+
+    if (!data || !data.all_funds || data.all_funds.length === 0) {
+        container.innerHTML = '<div class="alert alert-info text-center">' +
+            '<i class="fas fa-info-circle me-2"></i>No warning data available</div>';
+        return;
+    }
+
+    var allFunds = data.all_funds;
+    var totalFunds = allFunds.length;
+    var warningFunds = 0;
+
+    allFunds.forEach(function(fund) {
+        if (!fund.indicators) fund.indicators = [];
+        var hasWarning = false;
+        fund.indicators.forEach(function(ind) {
+            if (ind.status === 'Warning') hasWarning = true;
+        });
+        if (hasWarning) warningFunds++;
+    });
+
+    var normalFunds = totalFunds - warningFunds;
+
+    var html = '';
+
+    // Fund cards
+    html += '<div class="row">';
+
+    allFunds.forEach(function(fund) {
+        var warningCount = 0;
+        if (!fund.indicators) fund.indicators = [];
+
+        fund.indicators.forEach(function(indicator) {
+            if (indicator.status === 'Warning') warningCount++;
+        });
+
+        var statusColor = warningCount > 0 ? 'warning' : 'success';
+        var statusText = warningCount > 0 ? 'Warning' : 'Normal';
+        var statusIcon = warningCount > 0 ? 'exclamation-triangle' : 'check-circle';
+
+        html += '<div class="col-lg-4 col-md-6 mb-4">' +
+            '<div class="card h-100 border-0 shadow-sm">' +
+                '<div class="card-header bg-' + statusColor + ' text-white">' +
+                    '<div class="d-flex justify-content-between align-items-center">' +
+                        '<h6 class="mb-0"><i class="fas fa-' + statusIcon + ' me-2"></i>' + fund.fund_name + '</h6>' +
+                        '<span class="badge bg-light text-dark">' + warningCount + ' warnings</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="card-body">' +
+                    '<div class="mb-3"><small class="text-muted">Monitor Date: ' + fund.monitor_date + '</small></div>' +
+                    '<div class="row">';
+
+        if (fund.indicators.length > 0) {
+            fund.indicators.forEach(function(indicator) {
+                var indColor = indicator.status === 'Warning' ? 'warning' : 'success';
+                var indIcon = indicator.status === 'Warning' ? 'exclamation-triangle' : 'check-circle';
+
+                html += '<div class="col-6 mb-2">' +
+                    '<div class="d-flex align-items-center">' +
+                        '<i class="fas fa-' + indIcon + ' text-' + indColor + ' me-2"></i>' +
+                        '<small class="text-truncate" title="' + indicator.name + '">' + indicator.name + '</small>' +
+                    '</div></div>';
+            });
+        } else {
+            html += '<div class="col-12"><div class="text-center text-muted">' +
+                '<small>No indicator data</small></div></div>';
+        }
+
+        html += '</div></div>' +
+            '<div class="card-footer bg-light">' +
+                '<div class="d-flex justify-content-end">' +
+                    '<button class="btn btn-sm btn-outline-primary" onclick="showFundDetail(\'' +
+                        fund.fund_name.replace(/'/g, "\\'") + '\', \'' + fund.monitor_date + '\')">' +
+                        '<i class="fas fa-eye me-1"></i>View Details</button>' +
+                '</div></div>' +
+            '</div></div>';
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function showFundDetail(fundName, monitorDate) {
+    fetch('/api/fund_detail?fund_name=' + encodeURIComponent(fundName) + '&monitor_date=' + encodeURIComponent(monitorDate), {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(response) {
+        if (response.success) {
+            renderFundDetailModal(response.data);
+        } else {
+            alert('Failed to load fund details: ' + (response.error || 'Unknown error'));
+        }
+    })
+    .catch(function(err) {
+        console.error('Failed to load fund details:', err);
+        alert('Failed to load fund details. Please try again later.');
+    });
+}
+
+function renderFundDetailModal(data) {
+    var fmtPercent = function(v) {
+        return (v == null || v === undefined) ? '-' : (Number(v) * 100).toFixed(2) + '%';
+    };
+    var fmtNum = function(v, d) {
+        d = d || 2;
+        return (v == null || v === undefined) ? '-' : Number(v).toFixed(d);
+    };
+
+    var rows = '';
+    data.indicators.forEach(function(indicator) {
+        var statusClass = indicator.status === 'Warning' ? 'warning' : 'success';
+        var statusIcon = indicator.status === 'Warning' ? 'exclamation-triangle' : 'check-circle';
+        var isPercent = /ratio|percent|liquidity/i.test(indicator.name);
+        var val = isPercent ? fmtPercent(indicator.value) : fmtNum(indicator.value);
+        var thr = (indicator.threshold == null || indicator.threshold === undefined) ? '-' :
+                  (isPercent ? fmtPercent(indicator.threshold) : fmtNum(indicator.threshold));
+
+        rows += '<tr>' +
+            '<td>' + indicator.name + '</td>' +
+            '<td>' + val + '</td>' +
+            '<td>' + thr + '</td>' +
+            '<td><span class="badge bg-' + statusClass + '">' +
+                '<i class="fas fa-' + statusIcon + ' me-1"></i>' + indicator.status +
+            '</span></td></tr>';
+    });
+
+    var modalHtml = '<div class="modal fade" id="fundDetailModal" tabindex="-1">' +
+        '<div class="modal-dialog modal-lg">' +
+            '<div class="modal-content">' +
+                '<div class="modal-header bg-primary text-white">' +
+                    '<h5 class="modal-title">Fund Details - ' + data.fund_name + '</h5>' +
+                    '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<div class="row mb-3">' +
+                        '<div class="col-md-6"><strong>Fund Name: </strong>' + data.fund_name + '</div>' +
+                        '<div class="col-md-6"><strong>Monitor Date: </strong>' + data.monitor_date + '</div>' +
+                    '</div>' +
+                    '<div class="table-responsive">' +
+                        '<table class="table table-striped">' +
+                            '<thead><tr>' +
+                                '<th>Indicator</th><th>Current Value</th><th>Threshold</th><th>Status</th>' +
+                            '</tr></thead>' +
+                            '<tbody>' + rows + '</tbody>' +
+                        '</table>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="modal-footer">' +
+                    '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+
+    // Remove existing modal if any
+    var existing = document.getElementById('fundDetailModal');
+    if (existing) existing.remove();
+
+    // Append and show modal
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    var modalEl = document.getElementById('fundDetailModal');
+    var modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    // Clean up on close
+    modalEl.addEventListener('hidden.bs.modal', function() {
+        modalEl.remove();
+    });
+}
+</script>
+{% endblock %}

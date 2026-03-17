@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+
+{% block title %}Redemption Scenario Analysis - Fund Risk Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+.ratio-display {
+    font-size: 3rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+.config-section .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+.redemption-table th,
+.redemption-table td {
+    vertical-align: middle !important;
+    padding: 0.75rem 0.5rem;
+}
+.redemption-table th { font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-chart-line me-2"></i>Redemption Scenario Analysis</h4>
+                    <p class="mb-0 mt-1 small opacity-75">Calculate expected redemption ratio based on fund holder structure</p>
+                </div>
+                <div class="card-body">
+                    <!-- Query Criteria -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="fundSelect" class="form-label">Select Fund</label>
+                            <select class="form-select" id="fundSelect">
+                                <option value="">Select a fund...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="dateSelect" class="form-label">Select Date</label>
+                            <select class="form-select" id="dateSelect" disabled>
+                                <option value="">Select a fund first...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button type="button" class="btn btn-primary" id="analyzeBtn" disabled>
+                                    <i class="fas fa-chart-line me-2"></i>Analyze
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analysis Results -->
+                    <div id="analysisResult" style="display: none;">
+                        <div class="row">
+                            <!-- Expected Redemption Ratio -->
+                            <div class="col-12 mb-4">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0"><i class="fas fa-percentage me-2"></i>Expected Redemption Ratio</h5>
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <div class="ratio-display text-primary" id="expectedRedemptionRatio">0%</div>
+                                        <p class="text-muted">Calculated from current holder structure and redemption weights</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Redemption Ratio Calculation Table -->
+                            <div class="col-12 mb-4">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Redemption Ratio Calculation</h5>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover redemption-table mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="text-center">Asset Category</th>
+                                                        <th class="text-end">Structure Ratio</th>
+                                                        <th class="text-end">Redemption Ratio</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Individual -->
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-primary">High Amount Individual (&gt;=200K)</span></td>
+                                                        <td class="text-end" id="highAmountIndividualRatio">0%</td>
+                                                        <td class="text-end" id="highAmountIndividualRedemptionRatio">50%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-warning text-dark">Low Amount Individual (&lt;200K)</span></td>
+                                                        <td class="text-end" id="lowAmountIndividualRatio">0%</td>
+                                                        <td class="text-end" id="lowAmountIndividualRedemptionRatio">30%</td>
+                                                    </tr>
+                                                    <!-- Product -->
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-info">Insurance Product</span></td>
+                                                        <td class="text-end" id="insuranceProductRatio">0%</td>
+                                                        <td class="text-end" id="insuranceProductRedemptionRatio">30%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-warning text-dark">Trust Product</span></td>
+                                                        <td class="text-end" id="trustProductRatio">0%</td>
+                                                        <td class="text-end" id="trustProductRedemptionRatio">70%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-success">Bank Product</span></td>
+                                                        <td class="text-end" id="bankProductRatio">0%</td>
+                                                        <td class="text-end" id="bankProductRedemptionRatio">70%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-secondary">Other Product</span></td>
+                                                        <td class="text-end" id="otherProductRatio">0%</td>
+                                                        <td class="text-end" id="otherProductRedemptionRatio">70%</td>
+                                                    </tr>
+                                                    <!-- Institution -->
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-primary">Bank Institution</span></td>
+                                                        <td class="text-end" id="bankInstitutionRatio">0%</td>
+                                                        <td class="text-end" id="bankInstitutionRedemptionRatio">30%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-warning text-dark">Insurance Institution</span></td>
+                                                        <td class="text-end" id="insuranceInstitutionRatio">0%</td>
+                                                        <td class="text-end" id="insuranceInstitutionRedemptionRatio">30%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-success">Finance Institution</span></td>
+                                                        <td class="text-end" id="financeInstitutionRatio">0%</td>
+                                                        <td class="text-end" id="financeInstitutionRedemptionRatio">30%</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="text-center"><span class="badge bg-secondary">Other Institution</span></td>
+                                                        <td class="text-end" id="otherInstitutionRatio">0%</td>
+                                                        <td class="text-end" id="otherInstitutionRedemptionRatio">50%</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Redemption Config (Admin Only) -->
+                            <div class="col-12" id="redemptionConfigSection" style="display: none;">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning text-dark">
+                                        <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Redemption Ratio Configuration</h5>
+                                        <small>Admin users can adjust redemption ratios per asset category</small>
+                                    </div>
+                                    <div class="card-body config-section">
+                                        <form id="redemptionConfigForm">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <h6 class="text-primary mb-3">Individual Investors</h6>
+                                                    <div class="mb-3">
+                                                        <label for="configHighAmountIndividual" class="form-label">High Amount Individual (&gt;=200K)</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configHighAmountIndividual" min="0" max="100" step="1" value="50">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="configLowAmountIndividual" class="form-label">Low Amount Individual (&lt;200K)</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configLowAmountIndividual" min="0" max="100" step="1" value="30">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <h6 class="text-success mb-3">Product Types</h6>
+                                                    <div class="mb-3">
+                                                        <label for="configInsuranceProduct" class="form-label">Insurance Product</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configInsuranceProduct" min="0" max="100" step="1" value="30">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="configTrustProduct" class="form-label">Trust Product</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configTrustProduct" min="0" max="100" step="1" value="70">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="configBankProduct" class="form-label">Bank Product</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configBankProduct" min="0" max="100" step="1" value="70">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="configOtherProduct" class="form-label">Other Product</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configOtherProduct" min="0" max="100" step="1" value="70">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <h6 class="text-info mb-3">Institutional Types</h6>
+                                                    <div class="mb-3">
+                                                        <label for="configBankInstitution" class="form-label">Bank Institution</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configBankInstitution" min="0" max="100" step="1" value="30">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="configInsuranceInstitution" class="form-label">Insurance Institution</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configInsuranceInstitution" min="0" max="100" step="1" value="30">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="configFinanceInstitution" class="form-label">Finance Institution</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configFinanceInstitution" min="0" max="100" step="1" value="30">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="configOtherInstitution" class="form-label">Other Institution</label>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control" id="configOtherInstitution" min="0" max="100" step="1" value="50">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="text-end mt-4">
+                                                <button type="button" class="btn btn-primary" id="saveConfigBtn">
+                                                    <i class="fas fa-save me-2"></i>Save Config
+                                                </button>
+                                                <button type="button" class="btn btn-outline-warning ms-2" id="updateRatiosBtn">
+                                                    <i class="fas fa-sync me-2"></i>Update Ratios for Date
+                                                </button>
+                                                <button type="button" class="btn btn-secondary ms-2" id="resetConfigBtn">
+                                                    <i class="fas fa-undo me-2"></i>Reset
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var fundDatesMap = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    checkAdminPermission();
+    loadFunds();
+
+    document.getElementById('fundSelect').addEventListener('change', function() {
+        var fundName = this.value;
+        if (fundName) {
+            loadDatesForFund(fundName);
+            loadRedemptionConfig(fundName);
+            document.getElementById('dateSelect').disabled = false;
+        } else {
+            document.getElementById('dateSelect').disabled = true;
+            document.getElementById('dateSelect').innerHTML = '<option value="">Select a fund first...</option>';
+            document.getElementById('analyzeBtn').disabled = true;
+        }
+    });
+
+    document.getElementById('dateSelect').addEventListener('change', function() {
+        document.getElementById('analyzeBtn').disabled = !this.value;
+    });
+
+    document.getElementById('analyzeBtn').addEventListener('click', function() {
+        var fundName = document.getElementById('fundSelect').value;
+        var analysisDate = document.getElementById('dateSelect').value;
+        if (fundName && analysisDate) analyzeFundRedemption(fundName, analysisDate);
+    });
+
+    document.getElementById('saveConfigBtn').addEventListener('click', saveRedemptionConfig);
+    document.getElementById('resetConfigBtn').addEventListener('click', resetRedemptionConfig);
+    document.getElementById('updateRatiosBtn').addEventListener('click', updateRedemptionRatios);
+});
+
+function checkAdminPermission() {
+    fetch('/api/check_admin')
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.is_admin) {
+                document.getElementById('redemptionConfigSection').style.display = '';
+            }
+        })
+        .catch(function() { /* not admin */ });
+}
+
+function loadFunds() {
+    fetch('/analysis/api/redemption_dates')
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success) {
+                fundDatesMap = response.data;
+                var funds = Object.keys(response.data);
+                var select = document.getElementById('fundSelect');
+                select.innerHTML = '<option value="">Select a fund...</option>';
+                funds.forEach(function(fund) {
+                    var opt = document.createElement('option');
+                    opt.value = fund;
+                    opt.textContent = fund;
+                    select.appendChild(opt);
+                });
+            }
+        })
+        .catch(function(err) { console.error('Failed to load funds:', err); });
+}
+
+function loadDatesForFund(fundName) {
+    var dates = fundDatesMap[fundName] || [];
+    var select = document.getElementById('dateSelect');
+    select.innerHTML = '<option value="">Select date...</option>';
+    dates.forEach(function(date) {
+        var opt = document.createElement('option');
+        opt.value = date;
+        opt.textContent = date;
+        select.appendChild(opt);
+    });
+}
+
+function loadRedemptionConfig(fundName) {
+    fetch('/api/get_redemption_config?fund_name=' + encodeURIComponent(fundName))
+        .then(function(res) { return res.json(); })
+        .then(function(response) {
+            if (response.success && response.data) {
+                var c = response.data;
+                setConfigVal('configHighAmountIndividual', c.high_amount_individual_redemption_ratio);
+                setConfigVal('configLowAmountIndividual', c.low_amount_individual_redemption_ratio);
+                setConfigVal('configInsuranceProduct', c.insurance_product_redemption_ratio);
+                setConfigVal('configTrustProduct', c.trust_product_redemption_ratio);
+                setConfigVal('configBankProduct', c.bank_product_redemption_ratio);
+                setConfigVal('configOtherProduct', c.other_product_redemption_ratio);
+                setConfigVal('configBankInstitution', c.bank_institution_redemption_ratio);
+                setConfigVal('configInsuranceInstitution', c.insurance_institution_redemption_ratio);
+                setConfigVal('configFinanceInstitution', c.finance_institution_redemption_ratio);
+                setConfigVal('configOtherInstitution', c.other_institution_redemption_ratio);
+            }
+        })
+        .catch(function() { /* use defaults */ });
+}
+
+function setConfigVal(id, ratio) {
+    var el = document.getElementById(id);
+    if (el && ratio !== undefined) el.value = Math.round(ratio * 100);
+}
+
+function getConfigData() {
+    var fundName = document.getElementById('fundSelect').value;
+    return {
+        fund_name: fundName,
+        high_amount_individual_redemption_ratio: parseFloat(document.getElementById('configHighAmountIndividual').value) / 100,
+        low_amount_individual_redemption_ratio: parseFloat(document.getElementById('configLowAmountIndividual').value) / 100,
+        insurance_product_redemption_ratio: parseFloat(document.getElementById('configInsuranceProduct').value) / 100,
+        trust_product_redemption_ratio: parseFloat(document.getElementById('configTrustProduct').value) / 100,
+        bank_product_redemption_ratio: parseFloat(document.getElementById('configBankProduct').value) / 100,
+        other_product_redemption_ratio: parseFloat(document.getElementById('configOtherProduct').value) / 100,
+        bank_institution_redemption_ratio: parseFloat(document.getElementById('configBankInstitution').value) / 100,
+        insurance_institution_redemption_ratio: parseFloat(document.getElementById('configInsuranceInstitution').value) / 100,
+        finance_institution_redemption_ratio: parseFloat(document.getElementById('configFinanceInstitution').value) / 100,
+        other_institution_redemption_ratio: parseFloat(document.getElementById('configOtherInstitution').value) / 100
+    };
+}
+
+function saveRedemptionConfig() {
+    var fundName = document.getElementById('fundSelect').value;
+    if (!fundName) { showAlert('Please select a fund first', 'warning'); return; }
+
+    fetch('/analysis/api/save_redemption_config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(getConfigData())
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            showAlert('Redemption ratio configuration saved successfully!', 'success');
+            var date = document.getElementById('dateSelect').value;
+            if (fundName && date) analyzeFundRedemption(fundName, date);
+        } else {
+            showAlert('Save failed: ' + (response.error || ''), 'danger');
+        }
+    })
+    .catch(function() { showAlert('Save failed. Please try again.', 'danger'); });
+}
+
+function updateRedemptionRatios() {
+    var fundName = document.getElementById('fundSelect').value;
+    var date = document.getElementById('dateSelect').value;
+    if (!fundName || !date) { showAlert('Please select a fund and date first', 'warning'); return; }
+
+    var data = getConfigData();
+    data.analysis_date = date;
+
+    fetch('/analysis/api/update_redemption_ratios', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            showAlert('Redemption ratios updated for ' + date, 'success');
+            analyzeFundRedemption(fundName, date);
+        } else {
+            showAlert('Update failed: ' + (response.error || ''), 'danger');
+        }
+    })
+    .catch(function() { showAlert('Update failed. Please try again.', 'danger'); });
+}
+
+function resetRedemptionConfig() {
+    document.getElementById('configHighAmountIndividual').value = 50;
+    document.getElementById('configLowAmountIndividual').value = 30;
+    document.getElementById('configInsuranceProduct').value = 30;
+    document.getElementById('configTrustProduct').value = 70;
+    document.getElementById('configBankProduct').value = 70;
+    document.getElementById('configOtherProduct').value = 70;
+    document.getElementById('configBankInstitution').value = 30;
+    document.getElementById('configInsuranceInstitution').value = 30;
+    document.getElementById('configFinanceInstitution').value = 30;
+    document.getElementById('configOtherInstitution').value = 50;
+}
+
+function analyzeFundRedemption(fundName, analysisDate) {
+    var btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+
+    fetch('/analysis/api/fund_redemption_analysis', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({fund_name: fundName, analysis_date: analysisDate})
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(response) {
+        if (response.success) {
+            displayAnalysisResult(response.data);
+        } else {
+            showAlert('Analysis failed: ' + (response.error || ''), 'danger');
+        }
+    })
+    .catch(function() { showAlert('Analysis failed. Please try again.', 'danger'); })
+    .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Analyze';
+    });
+}
+
+function displayAnalysisResult(data) {
+    document.getElementById('analysisResult').style.display = '';
+    document.getElementById('expectedRedemptionRatio').textContent = (data.expected_redemption_ratio * 100).toFixed(2) + '%';
+
+    var fmtPct = function(v) { return (v * 100).toFixed(2) + '%'; };
+    var fmtRdm = function(v) { return (v * 100).toFixed(0) + '%'; };
+
+    // Structure ratios
+    var sd = data.structure_data;
+    setText('highAmountIndividualRatio', fmtPct(sd.high_amount_individual_ratio));
+    setText('lowAmountIndividualRatio', fmtPct(sd.low_amount_individual_ratio));
+    setText('insuranceProductRatio', fmtPct(sd.insurance_product_ratio));
+    setText('trustProductRatio', fmtPct(sd.trust_product_ratio));
+    setText('bankProductRatio', fmtPct(sd.bank_product_ratio));
+    setText('otherProductRatio', fmtPct(sd.other_product_ratio));
+    setText('bankInstitutionRatio', fmtPct(sd.bank_institution_ratio));
+    setText('insuranceInstitutionRatio', fmtPct(sd.insurance_institution_ratio));
+    setText('financeInstitutionRatio', fmtPct(sd.finance_institution_ratio));
+    setText('otherInstitutionRatio', fmtPct(sd.other_institution_ratio));
+
+    // Redemption ratios
+    var rd = data.redemption_ratios;
+    setText('highAmountIndividualRedemptionRatio', fmtRdm(rd.high_amount_individual_redemption_ratio));
+    setText('lowAmountIndividualRedemptionRatio', fmtRdm(rd.low_amount_individual_redemption_ratio));
+    setText('insuranceProductRedemptionRatio', fmtRdm(rd.insurance_product_redemption_ratio));
+    setText('trustProductRedemptionRatio', fmtRdm(rd.trust_product_redemption_ratio));
+    setText('bankProductRedemptionRatio', fmtRdm(rd.bank_product_redemption_ratio));
+    setText('otherProductRedemptionRatio', fmtRdm(rd.other_product_redemption_ratio));
+    setText('bankInstitutionRedemptionRatio', fmtRdm(rd.bank_institution_redemption_ratio));
+    setText('insuranceInstitutionRedemptionRatio', fmtRdm(rd.insurance_institution_redemption_ratio));
+    setText('financeInstitutionRedemptionRatio', fmtRdm(rd.finance_institution_redemption_ratio));
+    setText('otherInstitutionRedemptionRatio', fmtRdm(rd.other_institution_redemption_ratio));
+}
+
+function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+
+function showAlert(message, type) {
+    var container = document.querySelector('.container-fluid');
+    var div = document.createElement('div');
+    div.className = 'alert alert-' + type + ' alert-dismissible fade show';
+    div.setAttribute('role', 'alert');
+    div.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    container.insertBefore(div, container.firstChild);
+    setTimeout(function() { if (div.parentNode) div.remove(); }, 3000);
+}
+</script>
+{% endblock %}
