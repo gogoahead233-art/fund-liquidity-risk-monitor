@@ -10,7 +10,7 @@
             <h4>
                 <i class="fas fa-wallet me-2"></i>Fund Holder Position Query
             </h4>
-            <p class="text-muted">Query by fund name, investor name, investor type, position date, etc. (Only records with amount >= 5M are shown)</p>
+            <p class="text-muted">Query by fund name, investor name, investor type, position date, etc.</p>
         </div>
     </div>
 
@@ -155,10 +155,7 @@ const amountFmt = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2, maxi
 
 document.addEventListener('DOMContentLoaded', function() {
     loadDropdowns();
-    // Set default dates to demo data range
-    document.getElementById('position_date_start').value = '2025-03-01';
-    document.getElementById('position_date_end').value = '2025-03-14';
-    // Auto-query on page load for demo
+    // Auto-query on page load for demo (after dropdowns load)
     setTimeout(performQuery, 500);
 
     document.getElementById('queryForm').addEventListener('submit', function(e) {
@@ -196,10 +193,11 @@ function loadDropdowns() {
         .then(function(res) { return res.json(); })
         .then(function(response) {
             if (response.success) {
-                populateCheckboxDropdown('fund_name_list', response.data.fund_names, 'fund_name', 'fund_name_dropdown', 'Select Fund Name');
-                populateCheckboxDropdown('investor_type_list', response.data.investor_types, 'investor_type', 'investor_type_dropdown', 'Select Investor Type');
-                if (response.data.channels) {
-                    populateCheckboxDropdown('channel_list', response.data.channels, 'channel', 'channel_dropdown', 'Select Channel');
+                var d = response.data || response;
+                populateCheckboxDropdown('fund_name_list', d.fund_names, 'fund_name', 'fund_name_dropdown', 'Select Fund Name');
+                populateCheckboxDropdown('investor_type_list', d.investor_types, 'investor_type', 'investor_type_dropdown', 'Select Investor Type');
+                if (d.channels) {
+                    populateCheckboxDropdown('channel_list', d.channels, 'channel', 'channel_dropdown', 'Select Channel');
                 }
             }
         })

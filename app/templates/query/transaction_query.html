@@ -23,7 +23,7 @@
             <h4>
                 <i class="fas fa-exchange-alt me-2"></i>Fund Transaction Query
             </h4>
-            <p class="text-muted">Query by fund name, transaction date, investor type, etc. (Only records with amount >= 5M are shown)</p>
+            <p class="text-muted">Query by fund name, transaction date, investor type, etc.</p>
         </div>
     </div>
 
@@ -165,10 +165,7 @@ const amountFmt = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2, maxi
 
 document.addEventListener('DOMContentLoaded', function() {
     loadDropdowns();
-    // Set default dates to demo data range
-    document.getElementById('transaction_date_start').value = '2025-03-01';
-    document.getElementById('transaction_date_end').value = '2025-03-14';
-    // Auto-query on page load for demo
+    // Auto-query on page load for demo (after dropdowns load)
     setTimeout(performQuery, 500);
 
     document.getElementById('queryForm').addEventListener('submit', function(e) {
@@ -209,13 +206,14 @@ function loadDropdowns() {
         .then(function(res) { return res.json(); })
         .then(function(response) {
             if (response.success) {
-                buildCheckboxList('fund_name_list', response.data.fund_names, 'fund_name', 'fund_name_dropdown', 'Select Fund Name');
-                buildCheckboxList('investor_type_list', response.data.investor_types, 'investor_type', 'investor_type_dropdown', 'Select Investor Type');
-                if (response.data.channels) {
-                    buildCheckboxList('channel_list', response.data.channels, 'channel', 'channel_dropdown', 'Select Channel');
+                var d = response.data || response;
+                buildCheckboxList('fund_name_list', d.fund_names, 'fund_name', 'fund_name_dropdown', 'Select Fund Name');
+                buildCheckboxList('investor_type_list', d.investor_types, 'investor_type', 'investor_type_dropdown', 'Select Investor Type');
+                if (d.channels) {
+                    buildCheckboxList('channel_list', d.channels, 'channel', 'channel_dropdown', 'Select Channel');
                 }
-                if (response.data.transaction_types) {
-                    buildCheckboxList('transaction_type_list', response.data.transaction_types, 'transaction_type', 'transaction_type_dropdown', 'Select Transaction Type');
+                if (d.transaction_types) {
+                    buildCheckboxList('transaction_type_list', d.transaction_types, 'transaction_type', 'transaction_type_dropdown', 'Select Transaction Type');
                 }
             }
         })

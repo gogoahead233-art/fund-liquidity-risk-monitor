@@ -23,6 +23,7 @@ instance/
 *.csv
 !sample_data/*.csv
 !sample_data/*.json
+!sample_data/*.xlsx
 
 # IDE
 .vscode/

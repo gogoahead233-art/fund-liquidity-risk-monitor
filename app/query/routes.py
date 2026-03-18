@@ -70,9 +70,6 @@ def api_query_position():
         if date_end:
             query = query.filter(InvestorPosition.position_date <= date_end)
 
-        # Minimum amount filter
-        query = query.filter(InvestorPosition.position_amount >= 5000000)
-
         total = query.count()
         records = query.order_by(InvestorPosition.position_date.desc()).limit(1000).all()
 
@@ -130,8 +127,6 @@ def api_query_transaction():
             query = query.filter(InvestorTransaction.transaction_date >= date_start)
         if date_end:
             query = query.filter(InvestorTransaction.transaction_date <= date_end)
-
-        query = query.filter(InvestorTransaction.transaction_amount >= 5000000)
 
         total = query.count()
         records = query.order_by(InvestorTransaction.transaction_date.desc()).limit(1000).all()

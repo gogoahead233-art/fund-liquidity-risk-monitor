@@ -10,7 +10,7 @@
             <h4>
                 <i class="fas fa-chart-area me-2"></i>Position Change Analysis
             </h4>
-            <p class="text-muted">Analyze investor position changes over a specified period. Only records with initial or final amount >= 5M are shown.</p>
+            <p class="text-muted">Analyze investor position changes over a specified period.</p>
         </div>
     </div>
 
@@ -188,8 +188,9 @@ function loadDropdowns() {
         .then(function(res) { return res.json(); })
         .then(function(response) {
             if (response.success) {
-                buildCheckboxList('fund_name_list', response.data.fund_names, 'fund_name', 'fund_name_dropdown', 'Select Fund Name');
-                buildCheckboxList('investor_type_list', response.data.investor_types, 'investor_type', 'investor_type_dropdown', 'Select Investor Type');
+                var d = response.data || response;
+                buildCheckboxList('fund_name_list', d.fund_names, 'fund_name', 'fund_name_dropdown', 'Select Fund Name');
+                buildCheckboxList('investor_type_list', d.investor_types, 'investor_type', 'investor_type_dropdown', 'Select Investor Type');
             }
         })
         .catch(function(err) { console.error('Failed to load dropdown options:', err); });
