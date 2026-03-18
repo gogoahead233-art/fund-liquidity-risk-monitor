@@ -27,8 +27,8 @@ An open-source Flask web application for monitoring fund liquidity risk. Feature
 ## Quick Start
 
 ```bash
-git clone https://github.com/<your-org>/fund-risk-monitor.git
-cd fund-risk-monitor
+git clone https://github.com/gogoahead233-art/fund-liquidity-risk-monitor
+
 
 # Create a virtual environment (recommended)
 python -m venv venv
@@ -144,3 +144,10 @@ Please keep pull requests focused on a single change and include a clear descrip
 ## License
 
 This project is released under the [MIT License](LICENSE).
+
+## About the Author
+Risk Management Director with 15+ years of experience in China's mutual fund industry
+Tech stack: Python (Flask, Streamlit, pandas), SQL, AI agents (Dify, Coze, LangChain), workflow automation (n8n), and AI-assisted development (Cursor, Claude).
+Upwork: https://www.upwork.com/freelancers/~0112f0f3dff812624e
+Fiverr: https://www.fiverr.com/sellers/wangfei_
+
