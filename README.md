@@ -27,8 +27,8 @@ An open-source Flask web application for monitoring fund liquidity risk. Feature
 ## Quick Start
 
 ```bash
-git clone https://github.com/gogoahead233-art/fund-liquidity-risk-monitor
-
+git clone https://github.com/gogoahead233-art/fund-liquidity-risk-monitor.git
+cd fund-liquidity-risk-monitor
 
 # Create a virtual environment (recommended)
 python -m venv venv
@@ -128,7 +128,23 @@ Key environment variables (can also be placed in a `.env` file):
 
 ## Screenshots
 
-> Screenshots coming soon.
+### Login
+![Login](docs/screenshots/login.png)
+
+### Dashboard - Liquidity Risk Cockpit
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Liquidity Risk Warning Model
+![Warning Model](docs/screenshots/warning_model.png)
+
+### Fund Holder Position Query
+![Position Query](docs/screenshots/position_query.png)
+
+### Position Change Analysis
+![Position Change](docs/screenshots/position_change.png)
+
+### Redemption Scenario Analysis
+![Redemption Analysis](docs/screenshots/redemption_analysis.png)
 
 ## Contributing
 
